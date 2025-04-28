@@ -1,25 +1,26 @@
-import mysql from 'mysql2/promise';
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  user: process.env.DB_USERNAME || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_DATABASE || 'homestay_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const connectionString = process.env.DB_CONNECTION_STRING;
+
+const pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false // Required for Supabase
+  },
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
+  connectionTimeoutMillis: 2000, // How long to wait for a connection
 });
 
 // Test database connection
 const testConnection = async () => {
   try {
-    const connection = await pool.getConnection();
+    const client = await pool.connect();
     console.log('Database connection successful!');
-    connection.release();
+    client.release();
     return true;
   } catch (error) {
     console.error('Database connection failed:', error);
