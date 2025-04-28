@@ -1,0 +1,66 @@
+-- Create users table
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('ADMIN', 'OWNER', 'TOURIST') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Create homestays table
+CREATE TABLE IF NOT EXISTS homestays (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    facilities JSON NOT NULL,
+    images JSON NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Create bookings table
+CREATE TABLE IF NOT EXISTS bookings (
+    id VARCHAR(36) PRIMARY KEY,
+    homestay_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    check_in_date DATE NOT NULL,
+    check_out_date DATE NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    status ENUM('PENDING', 'CONFIRMED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (homestay_id) REFERENCES homestays(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Create payments table
+CREATE TABLE IF NOT EXISTS payments (
+    id VARCHAR(36) PRIMARY KEY,
+    booking_id VARCHAR(36) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_method ENUM('CREDIT_CARD', 'BANK_TRANSFER', 'E_WALLET') NOT NULL,
+    status ENUM('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED') NOT NULL DEFAULT 'PENDING',
+    transaction_id VARCHAR(255),
+    payment_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+);
+
+-- Create payment_transactions table for payment history
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id VARCHAR(36) PRIMARY KEY,
+    payment_id VARCHAR(36) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    status ENUM('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED') NOT NULL,
+    transaction_id VARCHAR(255),
+    payment_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+); 
