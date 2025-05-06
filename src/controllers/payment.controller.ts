@@ -12,15 +12,15 @@ export const createPayment = async (
     const { booking_id, amount, payment_method, transaction_id } = req.body;
 
     // Check if booking exists and is not already paid
-    const [bookings] = await pool.query(
+    const { rows: bookings } = await pool.query(
       `SELECT b.*, h.owner_id 
        FROM bookings b 
        JOIN homestays h ON b.homestay_id = h.id 
-       WHERE b.id = ? AND b.status = 'CONFIRMED'`,
+       WHERE b.id = $1 AND b.status = 'CONFIRMED'`,
       [booking_id]
     );
 
-    if (!Array.isArray(bookings) || bookings.length === 0) {
+    if (bookings.length === 0) {
       return next(new AppError('Booking not found or not confirmed', 404));
     }
 
@@ -30,27 +30,23 @@ export const createPayment = async (
     }
 
     // Create payment record
-    const [result] = await pool.query(
-      `INSERT INTO payments (id, booking_id, amount, payment_method, transaction_id)
-       VALUES (UUID(), ?, ?, ?, ?)`,
+    const { rows: [newPayment] } = await pool.query(
+      `INSERT INTO payments (booking_id, amount, payment_method, transaction_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
       [booking_id, amount, payment_method, transaction_id]
-    );
-
-    const [newPayment] = await pool.query(
-      'SELECT * FROM payments WHERE id = ?',
-      [(result as any).insertId]
     );
 
     // Create initial transaction record
     await pool.query(
-      `INSERT INTO payment_transactions (id, payment_id, amount, status, transaction_id)
-       VALUES (UUID(), ?, ?, 'PENDING', ?)`,
-      [(result as any).insertId, amount, transaction_id]
+      `INSERT INTO payment_transactions (payment_id, amount, status, transaction_id)
+       VALUES ($1, $2, 'PENDING', $3)`,
+      [newPayment.id, amount, transaction_id]
     );
 
     res.status(201).json({
       status: 'success',
-      data: newPayment[0]
+      data: newPayment
     });
   } catch (error) {
     next(error);
@@ -67,51 +63,46 @@ export const updatePaymentStatus = async (
     const { status, transaction_id, payment_date } = req.body;
 
     // Check if payment exists
-    const [payments] = await pool.query(
-      'SELECT * FROM payments WHERE id = ?',
+    const { rows: payments } = await pool.query(
+      'SELECT * FROM payments WHERE id = $1',
       [id]
     );
 
-    if (!Array.isArray(payments) || payments.length === 0) {
+    if (payments.length === 0) {
       return next(new AppError('Payment not found', 404));
     }
 
     const payment = payments[0];
 
     // Update payment status
-    await pool.query(
+    const { rows: [updatedPayment] } = await pool.query(
       `UPDATE payments 
-       SET status = ?, 
-           transaction_id = COALESCE(?, transaction_id),
-           payment_date = COALESCE(?, payment_date)
-       WHERE id = ?`,
+       SET status = $1, 
+           transaction_id = COALESCE($2, transaction_id),
+           payment_date = COALESCE($3, payment_date)
+       WHERE id = $4
+       RETURNING *`,
       [status, transaction_id, payment_date, id]
     );
 
     // Create new transaction record
     await pool.query(
-      `INSERT INTO payment_transactions (id, payment_id, amount, status, transaction_id, payment_date)
-       VALUES (UUID(), ?, ?, ?, ?, ?)`,
+      `INSERT INTO payment_transactions (payment_id, amount, status, transaction_id, payment_date)
+       VALUES ($1, $2, $3, $4, $5)`,
       [id, payment.amount, status, transaction_id, payment_date]
     );
 
     // If payment is completed, update booking status
     if (status === 'COMPLETED') {
       await pool.query(
-        'UPDATE bookings SET status = ? WHERE id = ?',
+        'UPDATE bookings SET status = $1 WHERE id = $2',
         ['CONFIRMED', payment.booking_id]
       );
     }
 
-    // Get updated payment
-    const [updatedPayment] = await pool.query(
-      'SELECT * FROM payments WHERE id = ?',
-      [id]
-    );
-
     res.json({
       status: 'success',
-      data: updatedPayment[0]
+      data: updatedPayment
     });
   } catch (error) {
     next(error);
@@ -121,22 +112,22 @@ export const updatePaymentStatus = async (
 export const getPaymentById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const [payments] = await pool.query(
+    const { rows: payments } = await pool.query(
       `SELECT p.*, b.check_in_date, b.check_out_date, h.name as homestay_name
        FROM payments p
        JOIN bookings b ON p.booking_id = b.id
        JOIN homestays h ON b.homestay_id = h.id
-       WHERE p.id = ?`,
+       WHERE p.id = $1`,
       [id]
     );
 
-    if (!Array.isArray(payments) || payments.length === 0) {
+    if (payments.length === 0) {
       return next(new AppError('Payment not found', 404));
     }
 
     // Get payment transactions
-    const [transactions] = await pool.query(
-      'SELECT * FROM payment_transactions WHERE payment_id = ? ORDER BY created_at DESC',
+    const { rows: transactions } = await pool.query(
+      'SELECT * FROM payment_transactions WHERE payment_id = $1 ORDER BY created_at DESC',
       [id]
     );
 
@@ -155,8 +146,8 @@ export const getPaymentById = async (req: Request, res: Response, next: NextFunc
 export const getPaymentsByBooking = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { booking_id } = req.params;
-    const [payments] = await pool.query(
-      'SELECT * FROM payments WHERE booking_id = ? ORDER BY created_at DESC',
+    const { rows: payments } = await pool.query(
+      'SELECT * FROM payments WHERE booking_id = $1 ORDER BY created_at DESC',
       [booking_id]
     );
 
@@ -172,12 +163,12 @@ export const getPaymentsByBooking = async (req: Request, res: Response, next: Ne
 export const getPaymentsByUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user_id = req.user?.id;
-    const [payments] = await pool.query(
+    const { rows: payments } = await pool.query(
       `SELECT p.*, b.check_in_date, b.check_out_date, h.name as homestay_name
        FROM payments p
        JOIN bookings b ON p.booking_id = b.id
        JOIN homestays h ON b.homestay_id = h.id
-       WHERE b.user_id = ?
+       WHERE b.user_id = $1
        ORDER BY p.created_at DESC`,
       [user_id]
     );

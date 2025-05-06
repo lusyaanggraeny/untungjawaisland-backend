@@ -14,12 +14,12 @@ export const register = async (
     const { name, email, password, role = UserRole.TOURIST } = req.body;
 
     // Check if user already exists
-    const [existingUsers] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
+    const { rows: existingUsers } = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
       [email]
     );
 
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
+    if (existingUsers.length > 0) {
       return next(new AppError('Email already registered', 400));
     }
 
@@ -28,14 +28,14 @@ export const register = async (
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Insert new user
-    const [result] = await pool.query(
-      'INSERT INTO users (id, name, email, password, role) VALUES (UUID(), ?, ?, ?, ?)',
+    const { rows: [newUser] } = await pool.query(
+      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id',
       [name, email, hashedPassword, role]
     );
 
     // Generate token
     const token = generateToken({
-      id: (result as any).insertId,
+      id: newUser.id,
       role
     });
 
@@ -64,12 +64,12 @@ export const login = async (
     const { email, password } = req.body;
 
     // Find user
-    const [users] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
+    const { rows: users } = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
       [email]
     );
 
-    if (!Array.isArray(users) || users.length === 0) {
+    if (users.length === 0) {
       return next(new AppError('Invalid email or password', 401));
     }
 
