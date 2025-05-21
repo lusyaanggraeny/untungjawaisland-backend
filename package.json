@@ -8,7 +8,10 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "test": "jest",
-    "init-db": "ts-node src/config/init-db.ts"
+    "init-db": "ts-node src/config/init-db.ts",
+    "db:migrate": "npx supabase db push",
+    "db:reset": "npx supabase db reset",
+    "seed:csv": "ts-node src/database/seeds/seedFromCsv.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

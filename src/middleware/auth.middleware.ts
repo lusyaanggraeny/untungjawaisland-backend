@@ -2,11 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from './error.middleware';
 
+// Extended JWT payload interface to handle both admin and landing page user tokens
 interface JwtPayload {
-  id: string;
-  role: string;
+  id: number;
+  role?: string;
+  email?: string;
+  type?: string;
+  user_type?: 'admin' | 'landing_user';
 }
 
+// Update the global Request interface to include user
 declare global {
   namespace Express {
     interface Request {

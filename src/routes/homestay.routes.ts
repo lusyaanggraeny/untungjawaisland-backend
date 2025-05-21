@@ -4,7 +4,8 @@ import {
   getHomestayById,
   createHomestay,
   updateHomestay,
-  deleteHomestay
+  deleteHomestay,
+  addHomestayImage
 } from '../controllers/homestay.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -18,5 +19,8 @@ router.get('/:id', getHomestayById);
 router.post('/', authenticateToken, createHomestay);
 router.put('/:id', authenticateToken, updateHomestay);
 router.delete('/:id', authenticateToken, deleteHomestay);
+
+// New route for adding an image to a specific homestay
+router.post('/:homestayId/images', authenticateToken, addHomestayImage);
 
 export default router; 
