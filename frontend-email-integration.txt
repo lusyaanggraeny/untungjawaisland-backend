@@ -1,0 +1,62 @@
+UNTUNGJAWA HOMESTAY - FRONTEND EMAIL NOTIFICATION INTEGRATION
+=======================================================
+
+EMAIL FEATURES OVERVIEW
+----------------------
+The backend now automatically handles all email notifications:
+1. Booking confirmation emails to customers
+2. Booking notifications to homestay owners/admins
+3. Status update emails when booking status changes
+
+ENDPOINTS
+---------
+- Authenticated booking: POST /api/booking
+- Guest booking: POST /api/booking/guest
+- Status updates: PUT /api/booking/:id/status
+
+REQUIRED FIELDS FOR GUEST BOOKINGS
+--------------------------------
+{
+  "guest_name": "required",
+  "guest_email": "required",
+  "guest_phone": "required",
+  "start_date": "required", 
+  "end_date": "required",
+  "room_id": "required",
+  "number_of_guests": "required",
+  "special_requests": "optional",
+  "notes": "optional",
+  "check_in_time": "optional",
+  "check_out_time": "optional",
+  "payment_method": "optional"
+}
+
+FRONTEND IMPLEMENTATION TIPS
+--------------------------
+1. Add "Check your email" success messages after booking completion
+2. Consider email verification steps for guest bookings
+3. Add email resend option for booking confirmations
+4. Show loading state during booking creation (emails add slight processing time)
+
+UI CONSIDERATIONS
+----------------
+1. Display clear messaging that booking confirmations will be emailed
+2. Add instructions to check spam/junk folders
+3. Consider a "Didn't receive email?" support option
+
+EMAIL CONTENT OVERVIEW
+--------------------
+All emails include:
+- Booking number
+- Room/homestay details
+- Dates and times
+- Payment information
+- Booking status
+
+No additional frontend work is needed for email template rendering or sending logic.
+
+TESTING NOTES
+------------
+- In development, emails are sent to Ethereal test accounts (check console for preview URLs)
+- For production testing, use real email addresses
+- Backend logs all email successes and failures 
