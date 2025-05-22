@@ -228,7 +228,7 @@ INSERT INTO "homestay" (
 ) VALUES (
   'Cozy Beachside Homestay',
   'A comfortable homestay near the beach, perfect for families.',
-  1, -- Replace with a valid admin_users.id
+  8, -- Replace with a valid admin_users.id
   'active',
   true,
   'Bali, Indonesia',

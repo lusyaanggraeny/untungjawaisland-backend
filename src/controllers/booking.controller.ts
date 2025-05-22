@@ -848,4 +848,397 @@ export const checkRoomAvailability = async (
   } catch (error) {
     next(error);
   }
+};
+
+// Get all bookings (admin access)
+export const getAllBookings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Parse query parameters
+    const status = req.query.status as string | undefined;
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const page = parseInt(req.query.page as string || '1');
+    const limit = parseInt(req.query.limit as string || '20');
+    const offset = (page - 1) * limit;
+
+    // Check if user is admin
+    const userRole = req.user?.role;
+    const userType = req.user?.user_type;
+    
+    // Only super_admin can access all bookings
+    if (userType !== 'admin' || userRole !== 'super_admin') {
+      return next(new AppError('Unauthorized. Super admin access required.', 403));
+    }
+
+    // Build the query dynamically based on filters
+    let query = `
+      SELECT b.*, 
+             hr.title as room_title, hr.room_number,
+             h.id as homestay_id, h.title as homestay_title
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+    `;
+    
+    const queryParams: any[] = [];
+    let whereConditions: string[] = [];
+    
+    // Add filters
+    if (status) {
+      whereConditions.push(`b.status = $${queryParams.length + 1}`);
+      queryParams.push(status);
+    }
+    
+    if (startDate) {
+      whereConditions.push(`b.start_date >= $${queryParams.length + 1}`);
+      queryParams.push(startDate);
+    }
+    
+    if (endDate) {
+      whereConditions.push(`b.end_date <= $${queryParams.length + 1}`);
+      queryParams.push(endDate);
+    }
+    
+    // Add WHERE clause if there are conditions
+    if (whereConditions.length > 0) {
+      query += ' WHERE ' + whereConditions.join(' AND ');
+    }
+    
+    // Add ORDER BY and pagination
+    query += ` ORDER BY b.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+    
+    // Execute query
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      ${whereConditions.length > 0 ? ' WHERE ' + whereConditions.join(' AND ') : ''}
+    `;
+    
+    const { rows: countResult } = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2));
+    const total = parseInt(countResult[0].total);
+    
+    // Format the data
+    const bookings = rows.map(row => {
+      return {
+        id: row.id,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        room_id: row.room_id,
+        status: row.status,
+        is_paid: row.is_paid,
+        user_id: row.user_id,
+        booking_number: row.booking_number,
+        total_price: row.total_price,
+        payment_method: row.payment_method,
+        check_in_time: row.check_in_time,
+        check_out_time: row.check_out_time,
+        number_of_guests: row.number_of_guests,
+        notes: row.notes,
+        special_requests: row.special_requests,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        room: {
+          id: row.room_id,
+          title: row.room_title,
+          room_number: row.room_number
+        },
+        homestay: {
+          id: row.homestay_id,
+          title: row.homestay_title
+        }
+      };
+    });
+    
+    res.json({
+      status: 'success',
+      data: bookings,
+      meta: {
+        total,
+        page,
+        limit
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get bookings by owner ID
+export const getBookingsByOwner = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { ownerId } = req.params;
+    
+    // Parse query parameters
+    const status = req.query.status as string | undefined;
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const page = parseInt(req.query.page as string || '1');
+    const limit = parseInt(req.query.limit as string || '20');
+    const offset = (page - 1) * limit;
+    
+    // Check if user is authorized
+    const userRole = req.user?.role;
+    const userType = req.user?.user_type;
+    const userId = req.user?.id;
+    
+    // Only allow users to view their own bookings or super_admin to view any
+    if (!(userType === 'admin' && userRole === 'super_admin') && userId !== parseInt(ownerId)) {
+      return next(new AppError('Unauthorized. You can only view your own bookings.', 403));
+    }
+    
+    // Build the query to get bookings for all homestays owned by this owner
+    let query = `
+      SELECT b.*, 
+             hr.title as room_title, hr.room_number,
+             h.id as homestay_id, h.title as homestay_title
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      WHERE h.user_id = $1
+    `;
+    
+    const queryParams: any[] = [ownerId];
+    let whereConditions: string[] = [];
+    
+    // Add filters
+    if (status) {
+      whereConditions.push(`b.status = $${queryParams.length + 1}`);
+      queryParams.push(status);
+    }
+    
+    if (startDate) {
+      whereConditions.push(`b.start_date >= $${queryParams.length + 1}`);
+      queryParams.push(startDate);
+    }
+    
+    if (endDate) {
+      whereConditions.push(`b.end_date <= $${queryParams.length + 1}`);
+      queryParams.push(endDate);
+    }
+    
+    // Add additional WHERE conditions if there are any
+    if (whereConditions.length > 0) {
+      query += ' AND ' + whereConditions.join(' AND ');
+    }
+    
+    // Add ORDER BY and pagination
+    query += ` ORDER BY b.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+    
+    // Execute query
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Get total count for pagination
+    const baseWhereClause = `WHERE h.user_id = $1`;
+    const additionalWhere = whereConditions.length > 0 ? ' AND ' + whereConditions.join(' AND ') : '';
+    
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      ${baseWhereClause}${additionalWhere}
+    `;
+    
+    const { rows: countResult } = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2));
+    const total = parseInt(countResult[0].total);
+    
+    // Format the data
+    const bookings = rows.map(row => {
+      return {
+        id: row.id,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        room_id: row.room_id,
+        status: row.status,
+        is_paid: row.is_paid,
+        user_id: row.user_id,
+        booking_number: row.booking_number,
+        total_price: row.total_price,
+        payment_method: row.payment_method,
+        check_in_time: row.check_in_time,
+        check_out_time: row.check_out_time,
+        number_of_guests: row.number_of_guests,
+        notes: row.notes,
+        special_requests: row.special_requests,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        room: {
+          id: row.room_id,
+          title: row.room_title,
+          room_number: row.room_number
+        },
+        homestay: {
+          id: row.homestay_id,
+          title: row.homestay_title
+        }
+      };
+    });
+    
+    res.json({
+      status: 'success',
+      data: bookings,
+      meta: {
+        total,
+        page,
+        limit
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get bookings by homestay ID
+export const getBookingsByHomestay = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { homestayId } = req.params;
+    
+    // Parse query parameters
+    const status = req.query.status as string | undefined;
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const page = parseInt(req.query.page as string || '1');
+    const limit = parseInt(req.query.limit as string || '20');
+    const offset = (page - 1) * limit;
+    
+    // Check if user is authorized to view bookings for this homestay
+    const userRole = req.user?.role;
+    const userType = req.user?.user_type;
+    const userId = req.user?.id;
+    
+    // If not super_admin, verify the user is the owner of this homestay
+    if (!(userType === 'admin' && userRole === 'super_admin')) {
+      const { rows } = await pool.query('SELECT user_id FROM "homestay" WHERE id = $1', [homestayId]);
+      
+      if (rows.length === 0) {
+        return next(new AppError('Homestay not found', 404));
+      }
+      
+      const homestayOwnerId = rows[0].user_id;
+      
+      if (userId !== homestayOwnerId) {
+        return next(new AppError('Unauthorized. You can only view bookings for your own homestays.', 403));
+      }
+    }
+    
+    // Build the query
+    let query = `
+      SELECT b.*, 
+             hr.title as room_title, hr.room_number,
+             h.id as homestay_id, h.title as homestay_title
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      WHERE h.id = $1
+    `;
+    
+    const queryParams: any[] = [homestayId];
+    let whereConditions: string[] = [];
+    
+    // Add filters
+    if (status) {
+      whereConditions.push(`b.status = $${queryParams.length + 1}`);
+      queryParams.push(status);
+    }
+    
+    if (startDate) {
+      whereConditions.push(`b.start_date >= $${queryParams.length + 1}`);
+      queryParams.push(startDate);
+    }
+    
+    if (endDate) {
+      whereConditions.push(`b.end_date <= $${queryParams.length + 1}`);
+      queryParams.push(endDate);
+    }
+    
+    // Add additional WHERE conditions if there are any
+    if (whereConditions.length > 0) {
+      query += ' AND ' + whereConditions.join(' AND ');
+    }
+    
+    // Add ORDER BY and pagination
+    query += ` ORDER BY b.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+    
+    // Execute query
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Get total count for pagination
+    const baseWhereClause = `WHERE h.id = $1`;
+    const additionalWhere = whereConditions.length > 0 ? ' AND ' + whereConditions.join(' AND ') : '';
+    
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      ${baseWhereClause}${additionalWhere}
+    `;
+    
+    const { rows: countResult } = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2));
+    const total = parseInt(countResult[0].total);
+    
+    // Format the data
+    const bookings = rows.map(row => {
+      return {
+        id: row.id,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        room_id: row.room_id,
+        status: row.status,
+        is_paid: row.is_paid,
+        user_id: row.user_id,
+        booking_number: row.booking_number,
+        total_price: row.total_price,
+        payment_method: row.payment_method,
+        check_in_time: row.check_in_time,
+        check_out_time: row.check_out_time,
+        number_of_guests: row.number_of_guests,
+        notes: row.notes,
+        special_requests: row.special_requests,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        room: {
+          id: row.room_id,
+          title: row.room_title,
+          room_number: row.room_number
+        },
+        homestay: {
+          id: row.homestay_id,
+          title: row.homestay_title
+        }
+      };
+    });
+    
+    res.json({
+      status: 'success',
+      data: bookings,
+      meta: {
+        total,
+        page,
+        limit
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 }; 

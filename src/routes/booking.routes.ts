@@ -5,12 +5,21 @@ import {
   getBookingById, 
   getUserBookings,
   updateBookingStatus,
-  checkRoomAvailability
+  checkRoomAvailability,
+  getAllBookings,
+  getBookingsByOwner,
+  getBookingsByHomestay
 } from '../controllers/booking.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
 
+// New admin routes
+router.get('/', authenticateToken, getAllBookings); // Admin access to all bookings
+router.get('/owner/:ownerId', authenticateToken, getBookingsByOwner); // Owner's homestay bookings
+router.get('/homestay/:homestayId', authenticateToken, getBookingsByHomestay); // Specific homestay bookings
+
+// Existing routes
 router.post('/', authenticateToken, createBooking);
 // Public route for guest bookings - no authentication required
 router.post('/guest', createGuestBooking);

@@ -41,7 +41,7 @@ VALUES
 INSERT INTO "homestayRoom" 
 (homestay_id, title, description, status, room_number, number_people, max_occupancy, price, currency, size)
 VALUES
-(3, -- homestay_id
+(48, -- homestay_id
 'Family Suite', -- title
 'Large family room with multiple beds and amenities for families', -- description
 'available', -- status
