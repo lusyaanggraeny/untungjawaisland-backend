@@ -226,9 +226,13 @@ INSERT INTO "homestay" (
   "max_guests",
   "contact_number"
 ) VALUES (
-  'Cozy Beachside Homestay',
-  'A comfortable homestay near the beach, perfect for families.',
-  8, -- Replace with a valid admin_users.id
+  'Paradiso Homestay',
+  'Paradiso Homestay – Your Serene Island Escape
+
+Nestled in a tranquil corner of Pulau Untung Jawa, Paradiso Homestay offers guests a peaceful retreat surrounded by natural beauty. With charming island-inspired architecture, lush tropical gardens, and easy access to the beach, Paradiso is the perfect blend of comfort and authenticity. Guests can enjoy cozy, well-furnished rooms with modern amenities, home-cooked local meals, and warm hospitality that makes you feel like family.
+
+Whether you’re here to unwind, explore the island, or connect with the local culture, Paradiso Homestay provides an unforgettable experience where relaxation meets island charm. Ideal for solo travelers, couples, and families alike – welcome to your home away from home.',
+  13, -- Replace with a valid admin_users.id
   'active',
   true,
   'Bali, Indonesia',

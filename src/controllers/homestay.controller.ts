@@ -11,10 +11,13 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
         h.*,
         u.name as owner_name,
         (
-          SELECT json_agg(json_build_object('id', hi.id, 'img_url', hi.img_url, 'is_primary', hi.is_primary, 'order', hi."order"))
+          SELECT json_agg(
+            json_build_object('id', hi.id, 'img_url', hi.img_url, 'is_primary', hi.is_primary, 'order', hi."order")
+            ORDER BY hi."order", hi.id
+          )
           FROM "homestayImages" hi 
           WHERE hi.homestay_id = h.id
-        ) as images,
+        ) as "homestayImages",
         (
           SELECT json_agg(json_build_object(
             'id', hr.id, 
@@ -38,6 +41,33 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
     `;
     const { rows: homestays } = await pool.query(query);
 
+    // 🚨 EXHIBITION FIX: Only use fallback if NO real images exist
+    const fallbackImages = [
+      'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop', 
+      'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1502780402662-acc01917615e?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1486304873000-235643847519?w=800&h=600&fit=crop'
+    ];
+
+    homestays.forEach((homestay) => {
+      // Only add fallback if database returned NULL (no images at all)
+      if (homestay.homestayImages === null) {
+        const imageIndex = homestay.id % fallbackImages.length;
+        homestay.homestayImages = [{
+          id: homestay.id * 1000, // Unique ID
+          img_url: fallbackImages[imageIndex],
+          is_primary: true,
+          order: 1
+        }];
+      }
+    });
+
     res.json({
       status: 'success',
       data: homestays
@@ -56,10 +86,13 @@ export const getHomestayById = async (req: Request, res: Response, next: NextFun
         h.*,
         u.name as owner_name,
         (
-          SELECT json_agg(json_build_object('id', hi.id, 'img_url', hi.img_url, 'is_primary', hi.is_primary, 'order', hi."order"))
+          SELECT json_agg(
+            json_build_object('id', hi.id, 'img_url', hi.img_url, 'is_primary', hi.is_primary, 'order', hi."order")
+            ORDER BY hi."order", hi.id
+          )
           FROM "homestayImages" hi 
           WHERE hi.homestay_id = h.id
-        ) as images,
+        ) as "homestayImages",
         (
           SELECT json_agg(json_build_object(
             'id', hr.id, 
@@ -99,9 +132,28 @@ export const getHomestayById = async (req: Request, res: Response, next: NextFun
       return next(new AppError('Homestay not found', 404));
     }
 
+    const homestay = homestays[0];
+
+    // 🚨 EXHIBITION FIX: Only use fallback if NO real images exist
+    if (homestay.homestayImages === null) {
+      const fallbackImages = [
+        'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&h=600&fit=crop'
+      ];
+      
+      const imageIndex = homestay.id % fallbackImages.length;
+      homestay.homestayImages = [{
+        id: homestay.id * 1000,
+        img_url: fallbackImages[imageIndex],
+        is_primary: true,
+        order: 1
+      }];
+    }
+
     res.json({
       status: 'success',
-      data: homestays[0]
+      data: homestay
     });
   } catch (error) {
     next(error);
