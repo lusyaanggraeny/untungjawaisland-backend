@@ -1,0 +1,210 @@
+CHATBOT SYSTEM EXPLANATION - UNTUNG JAWA TOURISM WEBSITE
+================================================================
+
+OVERVIEW
+--------
+The chatbot in this project is an AI-powered tourism assistant called "Pulau Pal" that helps visitors learn about Untung Jawa Island, book accommodations, and plan their trips. It uses Google's Gemini AI API to generate intelligent responses and has access to a comprehensive knowledge base about the island.
+
+CORE ARCHITECTURE
+-----------------
+
+1. MAIN COMPONENTS:
+   - ChatBot.tsx: The main UI component with beautiful island-themed interface
+   - ai-service.ts: Core AI logic and API communication
+   - knowledgeService.ts: Tourism knowledge base and data management
+   - pageScannerService.ts: Context-aware page scanning
+   - config.ts: Configuration and system prompts
+
+2. AI SERVICE (ai-service.ts):
+   - Uses Google Gemini 2.0 Flash model for responses
+   - Implements intelligent query classification (tourism vs general topics)
+   - Has fallback mechanisms for API failures
+   - Includes safety settings and content filtering
+
+3. KNOWLEDGE SYSTEM:
+   - Static knowledge base about Untung Jawa (attractions, activities, transportation)
+   - Dynamic homestay data from the booking system
+   - FAQ database for common questions
+   - Real-time page context awareness
+
+HOW THE CHATBOT WORKS
+--------------------
+
+1. INITIALIZATION:
+   - Chatbot starts with a mystical island-themed greeting
+   - Loads with predefined quick reply options
+   - Checks for Gemini API key configuration
+
+2. MESSAGE PROCESSING FLOW:
+   a) User sends a message
+   b) System determines if it's tourism-related or general knowledge
+   c) Gathers contextual information:
+      - Current page content (via pageScannerService)
+      - Available homestays (via knowledgeService)
+      - Static island information
+   d) Builds enhanced system prompt with context
+   e) Sends request to Gemini API
+   f) Processes and displays response with typing animation
+
+3. INTELLIGENT FEATURES:
+   - Query Classification: Distinguishes between tourism and general questions
+   - Context Awareness: Knows what page user is viewing
+   - Dynamic Knowledge: Access to real-time homestay availability
+   - Fallback Responses: Works even without API key
+   - Error Handling: Graceful degradation on API failures
+
+4. SPECIAL HANDLERS:
+   - Homestay Requests: Shows available accommodations with booking links
+   - Weather Queries: Provides island weather information
+   - Page Navigation: Offers guidance when users change pages
+
+USER INTERFACE FEATURES
+-----------------------
+
+1. VISUAL DESIGN:
+   - Beautiful floating orb button with magical animations
+   - Island-themed color schemes (ocean, sunset, forest)
+   - Gradient backgrounds and mystical effects
+   - Responsive design for different screen sizes
+
+2. INTERACTION MODES:
+   - Chat Tab: Main conversation interface
+   - Discover Tab: Quick access to island information
+   - Plan Trip Tab: Travel planning assistance
+
+3. ENHANCED UX:
+   - Typing animations for realistic conversation feel
+   - Suggested replies for common questions
+   - Quick action buttons for popular requests
+   - Multi-language support (English/Indonesian)
+   - Theme switching capabilities
+
+TECHNICAL IMPLEMENTATION
+------------------------
+
+1. API INTEGRATION:
+   - Google Gemini API for AI responses
+   - RESTful calls with proper error handling
+   - Configurable model parameters (temperature, max tokens)
+   - Safety settings for content filtering
+
+2. STATE MANAGEMENT:
+   - React hooks for component state
+   - Message history management
+   - Loading states and animations
+   - Configuration persistence
+
+3. CONTEXT SYSTEM:
+   - Page scanner extracts current page content
+   - Knowledge service provides tourism data
+   - Dynamic context building for AI prompts
+
+4. ERROR HANDLING:
+   - API key validation
+   - Network error recovery
+   - Fallback response system
+   - User-friendly error messages
+
+CONFIGURATION SYSTEM
+--------------------
+
+1. ENVIRONMENT SETUP:
+   - Requires VITE_GEMINI_API_KEY in .env file
+   - Configurable AI model and parameters
+   - Customizable system prompts
+
+2. SYSTEM PROMPT:
+   - Defines chatbot personality as tourism assistant
+   - Sets response guidelines and formatting
+   - Includes both tourism and general knowledge capabilities
+
+3. FALLBACK RESPONSES:
+   - Pre-defined responses when AI is unavailable
+   - Tourism-focused backup messages
+   - Maintains user experience during outages
+
+KNOWLEDGE BASE STRUCTURE
+------------------------
+
+1. STATIC INFORMATION:
+   - Island location and transportation details
+   - Available activities and attractions
+   - Best visiting times and recommendations
+   - Cultural information and local secrets
+
+2. DYNAMIC DATA:
+   - Real-time homestay availability
+   - Current pricing and booking status
+   - User-specific recommendations
+
+3. FAQ SYSTEM:
+   - Common questions and answers
+   - Booking procedures
+   - Travel logistics
+
+SECURITY AND SAFETY
+-------------------
+
+1. API SECURITY:
+   - Environment variable protection for API keys
+   - Client-side key validation
+   - Secure API communication
+
+2. CONTENT SAFETY:
+   - Gemini API safety settings enabled
+   - Content filtering for harmful material
+   - Appropriate response guidelines
+
+3. ERROR PROTECTION:
+   - Graceful handling of API failures
+   - Input validation and sanitization
+   - Rate limiting considerations
+
+DEPLOYMENT CONSIDERATIONS
+-------------------------
+
+1. ENVIRONMENT VARIABLES:
+   - VITE_GEMINI_API_KEY must be configured
+   - Development vs production configurations
+   - API key security best practices
+
+2. PERFORMANCE:
+   - Optimized API calls with caching
+   - Efficient state management
+   - Smooth animations and transitions
+
+3. MONITORING:
+   - Console logging for debugging
+   - Error tracking and reporting
+   - Usage analytics potential
+
+FUTURE ENHANCEMENTS
+------------------
+
+1. POTENTIAL IMPROVEMENTS:
+   - Voice interaction capabilities
+   - Image recognition for travel photos
+   - Integration with booking systems
+   - Personalized recommendations
+   - Multi-modal responses (text, images, maps)
+
+2. SCALABILITY:
+   - Database integration for conversation history
+   - User preference learning
+   - Advanced analytics and insights
+   - Multi-language expansion
+
+TROUBLESHOOTING
+---------------
+
+1. COMMON ISSUES:
+   - "Gemini API key is not configured": Add API key to .env file
+   - API errors: Check network connection and key validity
+   - Slow responses: Verify API quota and rate limits
+
+2. DEBUGGING:
+   - Check browser console for error messages
+   - Verify environment variable configuration
+   - Test API connectivity independently
+
+This chatbot system provides a comprehensive, intelligent, and user-friendly interface for tourism assistance while maintaining robust error handling and beautiful user experience design.
