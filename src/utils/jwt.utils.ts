@@ -1,29 +1,28 @@
-import jwt from 'jsonwebtoken';
-import { JwtPayload } from '../types/user.types';
+import jwt, { SignOptions } from 'jsonwebtoken';
+import { AdminJwtPayload, UserJwtPayload } from '../types/user.types';
 
-export const generateToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, process.env.JWT_SECRET || 'your_jwt_secret_key', {
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-  });
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+export const generateToken = (payload: AdminJwtPayload): string => {
+  const options: SignOptions = {
+    expiresIn: JWT_EXPIRES_IN
+  };
+  return jwt.sign(payload, JWT_SECRET, options);
 };
 
 // JWT payload for landing page users
-interface UserJwtPayload {
-  id: number;
-  email: string;
-  type: string;
-}
-
 export const generateUserToken = (payload: UserJwtPayload): string => {
+  const options: SignOptions = {
+    expiresIn: JWT_EXPIRES_IN
+  };
   return jwt.sign(
     { ...payload, user_type: 'landing_user' }, // Add a type to distinguish from admin tokens
-    process.env.JWT_SECRET || 'your_jwt_secret_key',
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-    }
+    JWT_SECRET,
+    options
   );
 };
 
-export const verifyToken = (token: string): JwtPayload => {
-  return jwt.verify(token, process.env.JWT_SECRET || '') as JwtPayload;
+export const verifyToken = (token: string): AdminJwtPayload | UserJwtPayload => {
+  return jwt.verify(token, JWT_SECRET) as AdminJwtPayload | UserJwtPayload;
 }; 

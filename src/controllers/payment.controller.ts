@@ -60,7 +60,7 @@ export const updatePaymentStatus = async (
 ) => {
   try {
     const { id } = req.params;
-    const { status, transaction_id, payment_date } = req.body;
+    const { payment_status, transaction_id, payment_date } = req.body;
 
     // Check if payment exists
     const { rows: payments } = await pool.query(
@@ -77,23 +77,23 @@ export const updatePaymentStatus = async (
     // Update payment status
     const { rows: [updatedPayment] } = await pool.query(
       `UPDATE payments 
-       SET status = $1, 
+       SET payment_status = $1, 
            transaction_id = COALESCE($2, transaction_id),
            payment_date = COALESCE($3, payment_date)
        WHERE id = $4
        RETURNING *`,
-      [status, transaction_id, payment_date, id]
+      [payment_status, transaction_id, payment_date, id]
     );
 
     // Create new transaction record
     await pool.query(
       `INSERT INTO payment_transactions (payment_id, amount, status, transaction_id, payment_date)
        VALUES ($1, $2, $3, $4, $5)`,
-      [id, payment.amount, status, transaction_id, payment_date]
+      [id, payment.amount, payment_status, transaction_id, payment_date]
     );
 
     // If payment is completed, update booking status
-    if (status === 'COMPLETED') {
+    if (payment_status === 'COMPLETED') {
       await pool.query(
         'UPDATE bookings SET status = $1 WHERE id = $2',
         ['CONFIRMED', payment.booking_id]

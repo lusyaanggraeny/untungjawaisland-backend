@@ -124,9 +124,8 @@ export const loginUser = async (
       type: user.type
     });
 
-    // Remove password from response
-    const userResponse = { ...user };
-    delete userResponse.password;
+    // Create user response without password
+    const { password: _, ...userResponse } = user;
 
     res.json({
       status: 'success',
