@@ -4,6 +4,7 @@ import {
   createGuestBooking,
   getBookingById, 
   getUserBookings,
+  getMyBookings,
   updateBookingStatus,
   checkRoomAvailability,
   getAllBookings,
@@ -18,6 +19,9 @@ const router = Router();
 router.get('/', authenticateToken, getAllBookings); // Admin access to all bookings
 router.get('/owner/:ownerId', authenticateToken, getBookingsByOwner); // Owner's homestay bookings
 router.get('/homestay/:homestayId', authenticateToken, getBookingsByHomestay); // Specific homestay bookings
+
+// User routes
+router.get('/my', authenticateToken, getMyBookings); // Current user's bookings
 
 // Existing routes
 router.post('/', authenticateToken, createBooking);

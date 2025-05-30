@@ -340,6 +340,67 @@ export const getUserBookings = async (
   }
 };
 
+// Get current user's bookings
+export const getMyBookings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Check if the user is authenticated
+    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    if (!user || !user.id) {
+      return next(new AppError('User not authenticated', 401));
+    }
+
+    // Convert user ID to number for database query
+    const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+    
+    if (isNaN(userId)) {
+      return next(new AppError('Invalid user ID', 400));
+    }
+
+    // Get all bookings for the authenticated user with related data
+    const { rows } = await pool.query(
+      `SELECT 
+        b.*,
+        json_build_object(
+          'id', hr.id,
+          'title', hr.title,
+          'room_number', hr.room_number,
+          'price', hr.price
+        ) as room,
+        json_build_object(
+          'id', h.id,
+          'title', h.title,
+          'address', h.address
+        ) as homestay,
+        json_build_object(
+          'id', p.id,
+          'amount', p.amount,
+          'payment_status', p.payment_status,
+          'payment_method', p.payment_method
+        ) as payment
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      LEFT JOIN "payments" p ON b.id = p.booking_id
+      WHERE b.user_id = $1
+      ORDER BY b.created_at DESC`,
+      [userId]
+    );
+    
+    res.json({
+      status: 'success',
+      results: rows.length,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error in getMyBookings:', error);
+    next(error);
+  }
+};
+
 // Update booking status
 export const updateBookingStatus = async (
   req: Request<{id: string}, {}, BookingStatusUpdateInput>,
