@@ -37,7 +37,7 @@ const startServer = async () => {
   try {
     const isConnected = await testConnection();
     if (!isConnected) {
-      console.error('Failed to connect to database. Please check your MySQL connection.');
+      console.error('Failed to connect to database. Please check your PostgreSQL connection.');
       process.exit(1);
     }
     
