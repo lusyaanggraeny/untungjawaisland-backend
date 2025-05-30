@@ -14,7 +14,13 @@
     "seed:csv": "ts-node src/database/seeds/seedFromCsv.ts"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.2",
+    "@types/cors": "^2.8.13",
+    "@types/express": "^4.17.17",
+    "@types/jsonwebtoken": "^9.0.1",
     "@types/node": "^18.19.86",
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.11.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -23,18 +29,12 @@
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.3",
-    "pg": "^8.11.3"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.2",
-    "@types/cors": "^2.8.13",
-    "@types/express": "^4.17.17",
-    "@types/jsonwebtoken": "^9.0.1",
-    "@types/nodemailer": "^6.4.17",
-    "@types/pg": "^8.11.2",
+    "pg": "^8.11.3",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.2"
+  },
+  "devDependencies": {
   },
   "keywords": [],
   "author": "",

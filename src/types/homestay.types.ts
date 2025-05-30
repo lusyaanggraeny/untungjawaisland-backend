@@ -26,6 +26,7 @@ export interface Homestay {
   base_price: number | null; // DECIMAL(10,2) can be null
   max_guests: number | null; // INTEGER can be null
   contact_number: string | null; // VARCHAR(20) can be null
+  category: string | null; // VARCHAR(255) can be null
   created_at: Date;
   updated_at: Date;
   images?: HomestayImage[]; // Optional, if fetched via join/subquery
@@ -43,6 +44,7 @@ export interface HomestayCreateInput {
   base_price?: number | null;
   max_guests?: number | null;
   contact_number?: string | null;
+  category?: string | null;
   // For creating images, it's better to have a separate endpoint or handle it in a multi-step process
   // e.g., primary_image_url?: string;
 }
@@ -57,4 +59,5 @@ export interface HomestayUpdateInput {
   base_price?: number | null;
   max_guests?: number | null;
   contact_number?: string | null;
+  category?: string | null;
 } 

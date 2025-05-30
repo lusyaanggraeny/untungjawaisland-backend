@@ -13,6 +13,7 @@ import {
   sendBookingNotificationToAdmin,
   sendBookingStatusUpdate
 } from '../services/email.service';
+import { AdminJwtPayload, UserJwtPayload, AdminUserRole, UserRole } from '../types/user.types';
 
 // Generate a unique booking number
 const generateBookingNumber = (): string => {
@@ -249,70 +250,23 @@ export const getBookingById = async (
 ) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id, 10);
-
-    if (isNaN(bookingId)) {
-      return next(new AppError('Invalid booking ID', 400));
-    }
-
-    // Get booking with related data
     const { rows } = await pool.query(
-      `SELECT 
-        b.*,
-        json_build_object(
-          'id', hr.id,
-          'title', hr.title,
-          'room_number', hr.room_number,
-          'price', hr.price,
-          'currency', hr.currency
-        ) as room,
-        json_build_object(
-          'id', h.id,
-          'title', h.title,
-          'address', h.address,
-          'contact_number', h.contact_number
-        ) as homestay,
-        CASE 
-          WHEN b.user_id IS NOT NULL THEN
-            json_build_object(
-              'id', lpu.id,
-              'name', lpu.name,
-              'email', lpu.email,
-              'phone_number', lpu.phone_number
-            )
-          ELSE NULL
-        END as user
-      FROM "booking" b
-      JOIN "homestayRoom" hr ON b.room_id = hr.id
-      JOIN "homestay" h ON hr.homestay_id = h.id
-      LEFT JOIN "landing_page_user" lpu ON b.user_id = lpu.id
-      WHERE b.id = $1`,
-      [bookingId]
+      `SELECT b.*, 
+        hr.title as room_title, hr.room_number,
+        h.title as homestay_title, h.id as homestay_id
+       FROM "booking" b
+       JOIN "homestayRoom" hr ON b.room_id = hr.id
+       JOIN "homestay" h ON hr.homestay_id = h.id
+       WHERE b.id = $1`,
+      [id]
     );
 
     if (rows.length === 0) {
       return next(new AppError('Booking not found', 404));
     }
 
-    // Check if user is authorized to view this booking
-    const userId = req.user?.id;
-    const userType = req.user?.user_type;
-    const userRole = req.user?.role;
-    
-    const booking = rows[0];
-    
-    // Only allow access if:
-    // 1. User is the booking owner (landing user)
-    // 2. User is an admin
-    // 3. User is the homestay owner
-    if (
-      userType === 'landing_user' && booking.user_id !== userId &&
-      !(userType === 'admin' && (userRole === 'super_admin' || userRole === 'homestay_owner'))
-    ) {
-      return next(new AppError('Not authorized to access this booking', 403));
-    }
-
-    res.json({
+    const booking: BookingWithRelations = rows[0];
+    res.status(200).json({
       status: 'success',
       data: booking
     });
@@ -336,18 +290,24 @@ export const getUserBookings = async (
     }
     
     // Check if the requesting user is authorized to view these bookings
-    const requestingUserId = req.user?.id;
-    const userType = req.user?.user_type;
-    const userRole = req.user?.role;
-    
+    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    if (!user || !user.id) {
+      return next(new AppError('User not authenticated', 401));
+    }
+
+    // Check if user is admin or regular user
+    const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
+    const isRegularUser = 'role' in user && Object.values(UserRole).includes(user.role as UserRole);
+
+    if (!isAdmin && !isRegularUser) {
+      return next(new AppError('Invalid user type', 403));
+    }
+
     // Users can only view their own bookings unless they're admins
-    if (
-      userType === 'landing_user' && userIdParam !== requestingUserId &&
-      !(userType === 'admin' && (userRole === 'super_admin' || userRole === 'homestay_owner'))
-    ) {
+    if (isRegularUser && userIdParam !== user.id) {
       return next(new AppError('Not authorized to access these bookings', 403));
     }
-    
+
     // Get all bookings for the user with related data
     const { rows } = await pool.query(
       `SELECT 
@@ -393,179 +353,71 @@ export const updateBookingStatus = async (
 
     const { id } = req.params;
     const { status, cancellation_reason } = req.body;
-    const bookingId = parseInt(id, 10);
-    
-    if (isNaN(bookingId)) {
-      return next(new AppError('Invalid booking ID', 400));
+
+    // Validate status
+    if (!Object.values(BookingStatus).includes(status)) {
+      return next(new AppError('Invalid booking status', 400));
     }
-    
-    // Check if the booking exists
+
+    // Get the booking
     const { rows } = await client.query(
       'SELECT * FROM "booking" WHERE id = $1',
-      [bookingId]
+      [id]
     );
-    
+
     if (rows.length === 0) {
       return next(new AppError('Booking not found', 404));
     }
-    
+
     const booking = rows[0];
-    const oldStatus = booking.status;
-    
+
     // Check authorization
-    const userId = req.user?.id;
-    const userType = req.user?.user_type;
-    const userRole = req.user?.role;
-    
+    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    if (!user || !user.id) {
+      return next(new AppError('User not authenticated', 401));
+    }
+
+    // Check if user is admin or regular user
+    const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
+    const isRegularUser = 'role' in user && Object.values(UserRole).includes(user.role as UserRole);
+
+    if (!isAdmin && !isRegularUser) {
+      return next(new AppError('Invalid user type', 403));
+    }
+
     // Only allow status updates if:
-    // 1. User is the booking owner (landing user) - but they can only cancel
+    // 1. User is the booking owner (regular user) - but they can only cancel
     // 2. User is an admin
-    // 3. User is the homestay owner
-    if (
-      (userType === 'landing_user' && booking.user_id !== userId) ||
-      (userType === 'landing_user' && status !== BookingStatus.CANCELLED)
-    ) {
-      if (!(userType === 'admin' && (userRole === 'super_admin' || userRole === 'homestay_owner'))) {
-        return next(new AppError('Not authorized to update this booking', 403));
-      }
+    if (isRegularUser && booking.user_id !== user.id) {
+      return next(new AppError('Not authorized to update this booking', 403));
     }
-    
+
+    if (isRegularUser && status !== BookingStatus.CANCELLED) {
+      return next(new AppError('Regular users can only cancel bookings', 403));
+    }
+
     // Update the booking status
-    const updateFields = ['status = $1'];
-    const updateValues = [status];
-    let paramCount = 2;
-    
-    // Add cancellation details if status is CANCELLED
-    if (status === BookingStatus.CANCELLED) {
-      updateFields.push(`cancelled_at = CURRENT_TIMESTAMP`);
-      
-      if (cancellation_reason) {
-        updateFields.push(`cancellation_reason = $${paramCount}`);
-        updateValues.push(cancellation_reason);
-        paramCount++;
-      }
-    }
-    
-    const updateQuery = `
-      UPDATE "booking" 
-      SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${paramCount}
-      RETURNING *
-    `;
-    
-    updateValues.push(bookingId);
-    
-    const { rows: updatedRows } = await client.query(updateQuery, updateValues);
-    
-    // If cancelling a booking, update room status back to available
-    if (status === BookingStatus.CANCELLED && oldStatus !== BookingStatus.CANCELLED) {
-      // Get room ID from the booking
-      const roomId = booking.room_id;
-      
-      // Update room status to available
-      await client.query(
-        `UPDATE "homestayRoom" SET status = 'available', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [roomId]
-      );
-      
-      console.log(`Room ${roomId} status updated to available after booking ${bookingId} cancelled`);
-    }
-    
+    const updateResult = await client.query(
+      `UPDATE "booking" 
+       SET status = $1, 
+           cancellation_reason = $2,
+           cancelled_at = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4
+       RETURNING *`,
+      [
+        status,
+        cancellation_reason || null,
+        status === BookingStatus.CANCELLED ? new Date() : null,
+        id
+      ]
+    );
+
     await client.query('COMMIT');
-    
-    // Send email notification about booking status change
-    try {
-      // Get detailed information for the email
-      const { rows: bookingDetailRows } = await pool.query(
-        `SELECT 
-          b.*,
-          hr.title as room_title,
-          h.title as homestay_title,
-          CASE
-            WHEN b.user_id IS NOT NULL THEN (
-              SELECT json_build_object('name', lpu.name, 'email', lpu.email)
-              FROM "landing_page_user" lpu
-              WHERE lpu.id = b.user_id
-            )
-            ELSE NULL
-          END as user_info
-        FROM "booking" b
-        JOIN "homestayRoom" hr ON b.room_id = hr.id
-        JOIN "homestay" h ON hr.homestay_id = h.id
-        WHERE b.id = $1`,
-        [bookingId]
-      );
-      
-      if (bookingDetailRows.length > 0) {
-        const bookingDetails = bookingDetailRows[0];
-        let customerEmail = '';
-        let customerName = '';
-        
-        // Try to get customer email and name
-        if (bookingDetails.user_info) {
-          // Registered user
-          customerEmail = bookingDetails.user_info.email;
-          customerName = bookingDetails.user_info.name;
-        } else {
-          // Guest booking - try to extract email from notes
-          const notesText = bookingDetails.notes || '';
-          const emailMatch = notesText.match(/Email: ([^,]+)/);
-          const nameMatch = notesText.match(/Guest: ([^,]+)/);
-          
-          if (emailMatch && emailMatch[1]) {
-            customerEmail = emailMatch[1].trim();
-          }
-          
-          if (nameMatch && nameMatch[1]) {
-            customerName = nameMatch[1].trim();
-          }
-        }
-        
-        // Only send if we have an email
-        if (customerEmail) {
-          // Format dates for email
-          const formattedStartDate = new Date(bookingDetails.start_date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-          
-          const formattedEndDate = new Date(bookingDetails.end_date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-          
-          // Send status update email
-          await sendBookingStatusUpdate(
-            customerEmail,
-            {
-              bookingNumber: bookingDetails.booking_number,
-              customerName: customerName,
-              homestayName: bookingDetails.homestay_title,
-              roomName: bookingDetails.room_title,
-              checkInDate: formattedStartDate,
-              checkOutDate: formattedEndDate,
-              totalPrice: bookingDetails.total_price,
-              paymentStatus: bookingDetails.is_paid ? 'Paid' : 'Pending',
-              bookingStatus: status,
-              guestCount: bookingDetails.number_of_guests,
-              specialRequests: bookingDetails.special_requests || ''
-            },
-            status
-          ).catch(err => console.error('Error sending booking status update email:', err));
-        }
-      }
-    } catch (emailError) {
-      // Don't fail the request if email sending fails
-      console.error('Error sending booking status update email:', emailError);
-    }
-    
-    res.json({
+
+    res.status(200).json({
       status: 'success',
-      data: updatedRows[0]
+      data: updateResult.rows[0]
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -973,137 +825,49 @@ export const getAllBookings = async (
   }
 };
 
-// Get bookings by owner ID
+// Get bookings by owner
 export const getBookingsByOwner = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { ownerId } = req.params;
-    
-    // Parse query parameters
-    const status = req.query.status as string | undefined;
-    const startDate = req.query.start_date as string | undefined;
-    const endDate = req.query.end_date as string | undefined;
-    const page = parseInt(req.query.page as string || '1');
-    const limit = parseInt(req.query.limit as string || '20');
-    const offset = (page - 1) * limit;
-    
-    // Check if user is authorized
-    const userRole = req.user?.role;
-    const userType = req.user?.user_type;
-    const userId = req.user?.id;
-    
-    // Only allow users to view their own bookings or super_admin to view any
-    if (!(userType === 'admin' && userRole === 'super_admin') && userId !== parseInt(ownerId)) {
-      return next(new AppError('Unauthorized. You can only view your own bookings.', 403));
+    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    if (!user || !user.id) {
+      return next(new AppError('User not authenticated', 401));
     }
-    
-    // Build the query to get bookings for all homestays owned by this owner
-    let query = `
-      SELECT b.*, 
-             hr.title as room_title, hr.room_number,
-             h.id as homestay_id, h.title as homestay_title
-      FROM "booking" b
-      JOIN "homestayRoom" hr ON b.room_id = hr.id
-      JOIN "homestay" h ON hr.homestay_id = h.id
-      WHERE h.user_id = $1
-    `;
-    
-    const queryParams: any[] = [ownerId];
-    let whereConditions: string[] = [];
-    
-    // Add filters
-    if (status) {
-      whereConditions.push(`b.status = $${queryParams.length + 1}`);
-      queryParams.push(status);
+
+    // Check if user is admin or regular user
+    const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
+    const isRegularUser = 'role' in user && Object.values(UserRole).includes(user.role as UserRole);
+
+    if (!isAdmin && !isRegularUser) {
+      return next(new AppError('Invalid user type', 403));
     }
-    
-    if (startDate) {
-      whereConditions.push(`b.start_date >= $${queryParams.length + 1}`);
-      queryParams.push(startDate);
-    }
-    
-    if (endDate) {
-      whereConditions.push(`b.end_date <= $${queryParams.length + 1}`);
-      queryParams.push(endDate);
-    }
-    
-    // Add additional WHERE conditions if there are any
-    if (whereConditions.length > 0) {
-      query += ' AND ' + whereConditions.join(' AND ');
-    }
-    
-    // Add ORDER BY and pagination
-    query += ` ORDER BY b.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
-    queryParams.push(limit, offset);
-    
-    // Execute query
-    const { rows } = await pool.query(query, queryParams);
-    
-    // Get total count for pagination
-    const baseWhereClause = `WHERE h.user_id = $1`;
-    const additionalWhere = whereConditions.length > 0 ? ' AND ' + whereConditions.join(' AND ') : '';
-    
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM "booking" b
-      JOIN "homestayRoom" hr ON b.room_id = hr.id
-      JOIN "homestay" h ON hr.homestay_id = h.id
-      ${baseWhereClause}${additionalWhere}
-    `;
-    
-    const { rows: countResult } = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2));
-    const total = parseInt(countResult[0].total);
-    
-    // Format the data
-    const bookings = rows.map(row => {
-      return {
-        id: row.id,
-        start_date: row.start_date,
-        end_date: row.end_date,
-        room_id: row.room_id,
-        status: row.status,
-        is_paid: row.is_paid,
-        user_id: row.user_id,
-        booking_number: row.booking_number,
-        total_price: row.total_price,
-        payment_method: row.payment_method,
-        check_in_time: row.check_in_time,
-        check_out_time: row.check_out_time,
-        number_of_guests: row.number_of_guests,
-        notes: row.notes,
-        special_requests: row.special_requests,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        room: {
-          id: row.room_id,
-          title: row.room_title,
-          room_number: row.room_number
-        },
-        homestay: {
-          id: row.homestay_id,
-          title: row.homestay_title
-        }
-      };
-    });
-    
-    res.json({
+
+    const { rows } = await pool.query(
+      `SELECT b.*, 
+              hr.title as room_title,
+              h.title as homestay_title,
+              h.location as homestay_location
+       FROM "booking" b
+       JOIN "homestayRoom" hr ON b.room_id = hr.id
+       JOIN "homestay" h ON hr.homestay_id = h.id
+       WHERE b.user_id = $1
+       ORDER BY b.created_at DESC`,
+      [user.id]
+    );
+
+    res.status(200).json({
       status: 'success',
-      data: bookings,
-      meta: {
-        total,
-        page,
-        limit
-      }
+      data: rows
     });
   } catch (error) {
     next(error);
   }
 };
 
-// Get bookings by homestay ID
+// Get bookings by homestay
 export const getBookingsByHomestay = async (
   req: Request,
   res: Response,
@@ -1111,132 +875,22 @@ export const getBookingsByHomestay = async (
 ) => {
   try {
     const { homestayId } = req.params;
-    
-    // Parse query parameters
-    const status = req.query.status as string | undefined;
-    const startDate = req.query.start_date as string | undefined;
-    const endDate = req.query.end_date as string | undefined;
-    const page = parseInt(req.query.page as string || '1');
-    const limit = parseInt(req.query.limit as string || '20');
-    const offset = (page - 1) * limit;
-    
-    // Check if user is authorized to view bookings for this homestay
-    const userRole = req.user?.role;
-    const userType = req.user?.user_type;
-    const userId = req.user?.id;
-    
-    // If not super_admin, verify the user is the owner of this homestay
-    if (!(userType === 'admin' && userRole === 'super_admin')) {
-      const { rows } = await pool.query('SELECT user_id FROM "homestay" WHERE id = $1', [homestayId]);
-      
-      if (rows.length === 0) {
-        return next(new AppError('Homestay not found', 404));
-      }
-      
-      const homestayOwnerId = rows[0].user_id;
-      
-      if (userId !== homestayOwnerId) {
-        return next(new AppError('Unauthorized. You can only view bookings for your own homestays.', 403));
-      }
-    }
-    
-    // Build the query
-    let query = `
-      SELECT b.*, 
-             hr.title as room_title, hr.room_number,
-             h.id as homestay_id, h.title as homestay_title
-      FROM "booking" b
-      JOIN "homestayRoom" hr ON b.room_id = hr.id
-      JOIN "homestay" h ON hr.homestay_id = h.id
-      WHERE h.id = $1
-    `;
-    
-    const queryParams: any[] = [homestayId];
-    let whereConditions: string[] = [];
-    
-    // Add filters
-    if (status) {
-      whereConditions.push(`b.status = $${queryParams.length + 1}`);
-      queryParams.push(status);
-    }
-    
-    if (startDate) {
-      whereConditions.push(`b.start_date >= $${queryParams.length + 1}`);
-      queryParams.push(startDate);
-    }
-    
-    if (endDate) {
-      whereConditions.push(`b.end_date <= $${queryParams.length + 1}`);
-      queryParams.push(endDate);
-    }
-    
-    // Add additional WHERE conditions if there are any
-    if (whereConditions.length > 0) {
-      query += ' AND ' + whereConditions.join(' AND ');
-    }
-    
-    // Add ORDER BY and pagination
-    query += ` ORDER BY b.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
-    queryParams.push(limit, offset);
-    
-    // Execute query
-    const { rows } = await pool.query(query, queryParams);
-    
-    // Get total count for pagination
-    const baseWhereClause = `WHERE h.id = $1`;
-    const additionalWhere = whereConditions.length > 0 ? ' AND ' + whereConditions.join(' AND ') : '';
-    
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM "booking" b
-      JOIN "homestayRoom" hr ON b.room_id = hr.id
-      JOIN "homestay" h ON hr.homestay_id = h.id
-      ${baseWhereClause}${additionalWhere}
-    `;
-    
-    const { rows: countResult } = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2));
-    const total = parseInt(countResult[0].total);
-    
-    // Format the data
-    const bookings = rows.map(row => {
-      return {
-        id: row.id,
-        start_date: row.start_date,
-        end_date: row.end_date,
-        room_id: row.room_id,
-        status: row.status,
-        is_paid: row.is_paid,
-        user_id: row.user_id,
-        booking_number: row.booking_number,
-        total_price: row.total_price,
-        payment_method: row.payment_method,
-        check_in_time: row.check_in_time,
-        check_out_time: row.check_out_time,
-        number_of_guests: row.number_of_guests,
-        notes: row.notes,
-        special_requests: row.special_requests,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        room: {
-          id: row.room_id,
-          title: row.room_title,
-          room_number: row.room_number
-        },
-        homestay: {
-          id: row.homestay_id,
-          title: row.homestay_title
-        }
-      };
-    });
-    
-    res.json({
+    const { rows } = await pool.query(
+      `SELECT b.*, 
+        hr.title as room_title, hr.room_number,
+        h.title as homestay_title, h.id as homestay_id
+       FROM "booking" b
+       JOIN "homestayRoom" hr ON b.room_id = hr.id
+       JOIN "homestay" h ON hr.homestay_id = h.id
+       WHERE h.id = $1
+       ORDER BY b.created_at DESC`,
+      [homestayId]
+    );
+
+    const bookings: BookingWithRelations[] = rows;
+    res.status(200).json({
       status: 'success',
-      data: bookings,
-      meta: {
-        total,
-        page,
-        limit
-      }
+      data: bookings
     });
   } catch (error) {
     next(error);

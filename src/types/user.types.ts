@@ -26,7 +26,7 @@ export interface UserLoginInput {
   password: string;
 }
 
-export interface JwtPayload {
+export interface UserJwtPayload {
   id: string;
   role: UserRole;
 }
@@ -69,7 +69,7 @@ export interface AdminUserLoginInput {
   password: string;
 }
 
-export interface JwtPayload {
+export interface AdminJwtPayload {
   id: number; // Corresponds to admin_users.id
   username: string;
   role: AdminUserRole;
