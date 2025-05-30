@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../config/database';
 import { AppError } from '../middleware/error.middleware';
-import { LandingPageUser, LandingUserType } from '../types/user.types';
+import { LandingPageUser, LandingUserType, LandingUserJwtPayload } from '../types/user.types';
 import { generateUserToken } from '../utils/jwt.utils';
 
 interface LandingUserRegisterInput {

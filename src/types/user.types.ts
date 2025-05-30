@@ -31,6 +31,12 @@ export interface UserJwtPayload {
   role: UserRole;
 }
 
+export interface LandingUserJwtPayload {
+  id: number;
+  email: string;
+  type: LandingUserType;
+}
+
 // Corresponds to the user_role ENUM in schema.sql
 export enum AdminUserRole {
   HOMESTAY_OWNER = 'homestay_owner',
