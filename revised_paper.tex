@@ -1,0 +1,562 @@
+\documentclass[sigconf]{acmart}
+
+%% Rights information
+\setcopyright{acmcopyright}
+\copyrightyear{2025}
+\acmYear{2025}
+\acmConference{ESD811S}{2025}{Namibia}
+
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{tabularx}
+
+%% Set the title and author details
+\title{\textbf{Enhancing Tourism Through Digitalization: Implementation of Smart Booking System for Pulau Untung Jawa Island}}
+
+\author{Tashinga Ryan Manunure}
+\email{tashiemanunure@gmail.com}
+\orcid{1234-5678-9012}
+\affiliation{
+  \institution{Namibia University of Science and Technology}
+  \faculty{Faculty of Computing and Informatics}
+  \city{Windhoek}
+  \country{Namibia}
+}
+\author{Maria Tulina Matheus}
+\email{azeamatheus@gmail.com}
+\orcid{1234-5678-9012}
+\affiliation{
+  \institution{Namibia University of Science and Technology}
+  \faculty{Faculty of Computing and Informatics}
+  \city{Windhoek}
+  \country{Namibia}
+}
+
+%% CCS Concepts
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10002951.10003227.10003351</concept_id>
+<concept_desc>Information systems~Web applications</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10010147.10010257.10010293.10010294</concept_id>
+<concept_desc>Computing methodologies~Artificial intelligence</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10002951.10003227.10003241.10003244</concept_id>
+<concept_desc>Information systems~Database management</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Information systems~Web applications}
+\ccsdesc[300]{Computing methodologies~Artificial intelligence}
+\ccsdesc[300]{Information systems~Database management}
+
+%% Abstract
+\begin{abstract}
+This paper presents the development and implementation of a digital tourism solution for Pulau Untung Jawa Island, focusing on the integration of emerging technologies in the tourism sector. We describe the implementation of a smart homestay booking system that incorporates an artificial intelligence-powered chatbot to enhance the tourist experience. The developed website and chatbot address key challenges in island tourism through digital transformation, including accommodation management, tourist information accessibility, and local business integration. Our solution demonstrates how emerging technologies can be leveraged to promote sustainable tourism development in island communities while preserving local cultural heritage. This project was developed as part of the Global Intercultural Project Experience (GIPE++) program, demonstrating international academic collaboration in addressing real-world tourism challenges.
+\end{abstract}
+
+%% Keywords
+\keywords{Tourism Digitalization, Smart Tourism, Homestay Management, Artificial Intelligence, Chatbot, Emerging Technology, Smart Tourism Business, Island Tourism, Sustainability, Digital Transformation, GIPE++}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+GIPE++ (Global Intercultural Project Experience Plus Plus) is an international student program by Westphalian University of Applied Sciences, Germany, which connects students from Germany, Namibia, Peru, and Indonesia to tackle global challenges through intercultural teamwork, technical innovation, and sustainable development \cite{gipe2025program}. The 2025 GIPE++ program focuses on Untung Jawa Island in Indonesia, aiming to empower communities, restore the environment, and sustain local initiatives. Students are currently collaborating on projects using digital technology, environmental science, business principles, and Sustainable Development Goals (SDGs). The GIPE++ 2025 project spans from March 2025 until July 2025, when the official handover of the project to the client will take place.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{untung (2).jpeg}
+    \caption{Pulau Untung Jawa Island - The project destination showcasing the natural beauty and tourism potential that drives our digital transformation initiative.}
+    \label{fig:untung-island}
+\end{figure}
+
+The digital transformation of tourism services has become increasingly crucial for developing sustainable and accessible tourist destinations, as evidenced by growing academic and industry attention to smart tourism initiatives \cite{wu2024digital, gretzel2015smart}. Pulau Untung Jawa, an island destination in Indonesia, presents unique opportunities and challenges in implementing digital solutions for tourism management. This paper discusses the development and implementation of a comprehensive digital platform designed to enhance the tourist experience while supporting local business growth through technology integration, developed as part of the Global Intercultural Project Experience (GIPE++) program.
+
+Island tourism destinations face distinct challenges that have been well-documented in the literature, including limited accessibility to accommodation information, inefficient booking and payment systems, lack of standardized quality control for homestays, and insufficient digital presence for local businesses \cite{khoa2024heritage}. We argue that the implementation of emerging technologies, particularly artificial intelligence and modern web technologies, can address these challenges while promoting sustainable tourism development.
+
+The aim of this project is to develop a comprehensive digital platform that enhances the tourism experience for Pulau Untung Jawa Island through the integration of smart booking systems, AI-powered chatbots, and modern web technologies. Our approach demonstrates how emerging technologies can be effectively leveraged to bridge the digital divide in island tourism while preserving cultural heritage and supporting local economic development. This work represents a collaborative effort between Namibian and international partners through the GIPE++ Digital Platform stream, showcasing how academic partnerships can produce practical solutions with real-world impact.
+
+\section{Literature Review}
+
+The digitalization of heritage tourism has gained significant attention in recent academic literature, with researchers exploring various technological approaches to enhance destination choice and visitor experience. Understanding the current state of digital transformation in tourism is essential for implementing effective solutions in heritage tourism contexts like Pulau Untung Jawa Island.
+
+\subsection{Digital Technologies in Tourism Development}
+
+Wu et al. (2024) conducted a comprehensive state-of-the-art review of digital tourism and smart development, analyzing 278 studies spanning from 2012 to 2024 \cite{wu2024digital}. Their systematic literature analysis reveals five key trajectories in digital tourism development: in-depth application of digital technologies in tourism, spawning new scenarios for digital tourism, spawning new forms of digital tourism, spawning new modes of digital tourism, and deep integration of digital economy and tourism real economy. This framework directly supports our approach to developing an integrated digital platform for Untung Jawa Island, particularly through the implementation of AI-powered chatbots and smart booking systems that represent both new forms and modes of digital tourism.
+
+The study emphasizes that digital technologies not only provide personalized, intelligent, and convenient tourism services through tourism information service platforms, but also create opportunities for sustainable tourism industry development. Wu et al. argue that virtual and augmented reality technologies, personalized tourism services, and artificial intelligence voice assistants represent smart services that significantly impact digital tourism development, contributing to the growth of the digital economy and ultimately fostering sustainable tourism development. This perspective validates our implementation of the Google Gemini-powered "Pulau Pal" chatbot as a strategic approach to enhancing tourist experience while supporting sustainable development goals.
+
+\subsection{Artificial Intelligence in Tourism Applications}
+
+The transformative potential of artificial intelligence in tourism has been extensively documented by international policy organizations. The OECD (2024) emphasizes that artificial intelligence represents a transformative force in tourism, offering significant innovation potential to address pressing challenges within the sector \cite{oecd2024ai}. The report highlights that AI applications in tourism demonstrate remarkable potential to enhance visitor experiences through more interactive, personalized experiences and seamless travel, while increasing responsiveness to demand with 24/7 personalized services.
+
+The OECD study particularly emphasizes the importance of AI-powered chatbots and virtual assistants that provide personalized assistance and information tailored to diverse accessibility needs. The report cites successful examples such as Barcelona's Smart Tourism Destinations Programme, which introduced an AI-enhanced chatbot designed to make tourism attractions more accessible for individuals with various disabilities. This international perspective reinforces our decision to develop an AI-powered chatbot system that provides continuous, multilingual support to potential visitors while addressing accessibility concerns for diverse tourist populations.
+
+Furthermore, the OECD research identifies that AI technologies can significantly improve operational efficiency and customer satisfaction in tourism businesses, particularly through intelligent recommendation systems and automated customer service platforms. This finding directly supports our integration of intelligent query classification and context-aware response systems within the Pulau Pal chatbot implementation.
+
+\subsection{Heritage Tourism Digitalization}
+
+Khoa and Huynh (2024) conducted a comprehensive study on improving destination choice in heritage tourism through tourism digitalization, using Vietnam as a case study that shares similar characteristics with Indonesian island tourism contexts \cite{khoa2024heritage}. Their research demonstrates that digital platforms significantly influence tourist decision-making processes and destination selection, particularly in heritage tourism contexts where cultural authenticity and information accessibility are paramount.
+
+The study revealed that tourism digitalization, encompassing accessibility and interactivity, significantly influenced destination image and positively affected destination choice, while informativeness and personalization showed less direct impact on decision-making processes. This finding is particularly relevant to our research context, as it underscores the importance of developing accessible and interactive digital platforms for heritage destinations like Pulau Untung Jawa Island. The research supports our approach of developing an AI-powered chatbot that enhances accessibility and interactivity for visitors while providing real-time information about cultural practices, local cuisine, festivities, and community expectations.
+
+Khoa and Huynh's research also emphasizes that successful heritage tourism digitalization requires careful balance between technological innovation and cultural preservation. Their findings suggest that digital platforms must respect and enhance cultural authenticity rather than replacing traditional tourism experiences, which aligns with our development philosophy for the Untung Jawa platform where local community involvement and cultural sensitivity remain paramount throughout the digital transformation process.
+
+\subsection{Sustainable Tourism and Digital Transformation}
+
+The relationship between digital transformation and sustainable tourism development has been explored by Margatan (2025), who conducted a systematic literature review examining digital transformation's role in building sustainable tourism, with particular focus on Southeast Asian contexts similar to our study area \cite{margatan2025sustainable}. The research identifies critical gaps in understanding how digital technologies can enhance sustainability in community-based and environmentally conscious tourism initiatives.
+
+Margatan's study proposes the concept of a "Sustainable Tourism Digital Hub" that enables travel agents and local operators to directly sell tourism products through digital platforms, utilizing online marketing, big data analytics, and digital destination management systems. This framework resonates strongly with our approach of developing an integrated digital platform that connects tourists with local homestay operators while promoting sustainable tourism practices. The research emphasizes that successful digital transformation in tourism requires careful consideration of local economic impacts, environmental sustainability, and cultural preservation.
+
+The study also highlights the importance of empowering local tourism operators through digital technologies rather than displacing them with automated systems. This perspective directly influences our design philosophy for the Untung Jawa platform, where homestay owners maintain control over their properties while benefiting from enhanced digital visibility and streamlined booking processes. Margatan argues that digital transformation should strengthen local tourism ecosystems rather than disrupting traditional business relationships, supporting our approach to platform development that enhances rather than replaces existing tourism workflows.
+
+\subsection{Digital Technologies for Sustainable Tourism Destinations}
+
+El Archi et al. (2023) provide a comprehensive bibliometric analysis of digital technologies for sustainable tourism destinations, analyzing 559 publications from 2003 to 2022 to identify current trends and research directions \cite{elarchi2023digital}. Their research reveals that the adoption of digital technology has emerged as a key factor in promoting sustainable tourism, enhancing destination marketing, improving tourist resource management, and enhancing visitor experiences.
+
+The study identifies five key research themes in digital technologies for sustainable tourism: organizational factors, technological innovations, social impacts, sustainability considerations, and smart cities integration. El Archi et al. emphasize that successful technology adoption requires addressing both functional benefits and user experience considerations, informing our user-centered design approach for the Untung Jawa platform. Their research demonstrates that digital technologies contribute to increasing the effectiveness of marketing communication, helping to reduce costs and enabling more precise targeting of preferred tourist segments through personalized marketing approaches.
+
+The bibliometric analysis reveals that recent research focus has shifted toward smart tourism destinations that prioritize environmental, social, and economic sustainability to ensure long-term viability and minimal negative impacts on the environment and local communities. This perspective supports our integration of sustainability considerations throughout the platform development process, ensuring that digital transformation supports rather than undermines local community interests and environmental preservation goals.
+
+\subsection{Metaverse Applications in Smart Tourism Businesses}
+
+Recent developments in immersive technologies have introduced new paradigms for tourism experiences through metaverse applications. Gajdošík and Puchalík (2024) conducted empirical research examining metaverse applications for smart tourism businesses, analyzing perspectives from 310 managers across diverse tourism sectors including hotels, restaurants, cultural facilities, tour operators, cable car operators, and sport and recreational facilities \cite{gajdosik2024metaverse}. Their research reveals that metaverse applications hold particular significance for hotels, cultural facilities, and tour operators, as these businesses value extra-sensory experiences most highly.
+
+The study identifies four stages of metaverse application in tourism: intensification (fusion of virtual elements into physical environments through augmented reality), imitation (creation of replicated reality via virtual reality), interaction (dynamic interplay between reality and virtuality through AI and mixed reality), and future integration (potential brain-computer interfaces). This framework provides valuable context for understanding how our AI-powered chatbot implementation represents an early-stage metaverse application, particularly in the interaction phase where AI facilitates dynamic engagement between tourists and destination information.
+
+Gajdošík and Puchalík's research demonstrates that smart tourism businesses are uniquely positioned to deliver immersive, sensorially rich experiences that align with metaverse affordances. Their analysis of the MetaChors ho(s)tel in Slovakia, which represents the world's first NFT ho(s)tel bridging physical and virtual realms, provides practical insights into how emerging technologies can transform traditional hospitality models. This case study supports our approach to developing innovative digital solutions for Untung Jawa Island, demonstrating that practical implementations of emerging technologies in tourism are not only feasible but can enhance both tourist experiences and business operations.
+
+The research emphasizes that metaverse technologies significantly influence tourist behavior across pre-travel planning, destination experience, and post-visit engagement phases. This perspective validates our comprehensive approach to developing the Pulau Pal chatbot system, which provides support throughout the entire tourist journey from initial destination discovery through post-visit memory enhancement and experience sharing.
+
+\subsection{Research Gaps and Contribution}
+
+The reviewed literature reveals several important gaps that our research addresses. While existing studies provide comprehensive frameworks for digital tourism development, there remains limited documentation of practical implementations that successfully integrate multiple emerging technologies (AI, modern web technologies, and comprehensive booking systems) within heritage tourism contexts. Additionally, most existing research focuses on large-scale tourism destinations, with limited attention to small island communities facing unique digital transformation challenges.
+
+Our research contributes to filling these gaps by providing a detailed case study of emerging technology implementation in island heritage tourism, demonstrating how international academic collaboration can produce practical solutions that address real-world tourism challenges while respecting local cultural contexts and promoting sustainable development. The integration of Google Gemini AI technology with traditional web-based booking systems represents a novel approach that extends current understanding of AI applications in tourism beyond simple chatbot implementations toward comprehensive intelligent tourism assistance systems.
+
+\section{Research Methodology}
+
+\subsection{Methodological Framework and Justification}
+
+The selection of our research methodology was guided by the need to address both the practical development requirements of a digital tourism platform and the complex socio-cultural dynamics of heritage tourism in an island community context. Given the interdisciplinary nature of this project, spanning information systems development, tourism studies, and international collaboration frameworks, we adopted a pragmatic research paradigm that emphasizes problem-solving and practical outcomes \cite{sifolo2025transformative}.
+
+This research employs a mixed-methods approach combining qualitative and quantitative methodologies within a participatory action research (PAR) framework. The choice of PAR was motivated by three key factors: (1) the GIPE++ program's emphasis on collaborative international engagement, (2) the need to ensure that technological solutions align with local community needs and cultural values, and (3) the iterative nature of software development that benefits from continuous stakeholder feedback \cite{sifolo2025transformative}. PAR is particularly suited to technology implementation projects in developing tourism contexts where community buy-in and cultural sensitivity are essential for sustainable outcomes \cite{megawati2025moderating}.
+
+The mixed-methods approach was selected to capture both the quantitative metrics of system performance and user engagement, as well as the qualitative insights into stakeholder experiences, cultural considerations, and community impacts. Recent research by Creswell (2021) demonstrates that mixed methods research provides enhanced understanding through the integration of multiple data sources and analytical perspectives \cite{creswell2021concise}. This methodological combination allows for triangulation of findings and provides a more comprehensive understanding of the digital transformation process than either approach alone could achieve.
+
+\subsection{Research Design}
+
+The study utilized a participatory action research approach, enabling collaborative engagement with local stakeholders including the Pokdarwis organization (Tourism Awareness Group), homestay owners, and Indonesian academic partners. PAR was chosen over traditional research methodologies because it facilitates co-creation of knowledge between researchers and community members, ensuring that the developed solution addresses real community needs while respecting local cultural contexts and business practices \cite{sifolo2025transformative}. This approach aligns with the GIPE++ program's objectives of fostering meaningful international collaboration and producing practical solutions with lasting community impact.
+
+The collaborative framework was essential for navigating the cultural complexities of implementing digital solutions in heritage tourism contexts, where technological innovation must be balanced with cultural preservation and community empowerment. Alternative methodologies such as traditional experimental design or purely observational studies would not have provided the necessary community engagement and iterative feedback loops required for successful technology adoption in this context \cite{megawati2025moderating}.
+
+Table \ref{tab:research-design} summarizes the key components of our research design framework:
+
+\begin{table}[h]
+\centering
+\caption{Research Design Framework}
+\label{tab:research-design}
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}lXX@{}}
+\toprule
+\textbf{Component} & \textbf{Description} & \textbf{Purpose} \\
+\midrule
+Paradigm & PAR & Collaborative problem-solving \\
+Approach & Mixed-methods & Comprehensive understanding \\
+Context & Untung Jawa Island & Real-world validation \\
+Collaboration & GIPE++ framework & Cross-cultural exchange \\
+Timeline & Mar-Jul 2025 & Structured implementation \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Data Collection Strategy}
+
+Our data collection strategy was designed to capture multiple perspectives and data types necessary for both system development and research validation. The selection of data collection methods was guided by the principle of methodological complementarity, where each method addresses specific aspects of the research questions while contributing to an overall understanding of the digital transformation process \cite{creswell2021concise}.
+
+Table \ref{tab:data-collection} provides a detailed overview of our data collection strategy:
+
+\begin{table}[h]
+\centering
+\caption{Data Collection Methods}
+\label{tab:data-collection}
+\tiny
+\begin{tabularx}{\columnwidth}{@{}p{1.8cm}p{1.6cm}p{2cm}p{1.8cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Participants} & \textbf{Data Type} & \textbf{Analysis} \\
+\midrule
+Stakeholder Interviews & Pokdarwis, owners & Workflows & Thematic \\
+Focus Groups & Students & Experiences & Content \\
+Content Analysis & Websites & Features & Mixed \\
+Requirements & Stakeholders & System specs & Engineering \\
+Literature Review & Sources & Frameworks & Systematic \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Stakeholder interviews were conducted to understand existing tourism workflows, identify pain points, and gather requirements for digital solutions. Focus groups with international student participants provided insights into cross-cultural collaboration challenges and user experience perspectives. Content analysis of existing tourism websites informed competitive analysis and feature benchmarking. The combination of these methods ensured comprehensive data collection addressing both technical requirements and socio-cultural considerations.
+
+\subsection{Technology Acceptance and User Experience Assessment}
+
+Given the central role of technology adoption in our platform development, we incorporated elements from the Technology Acceptance Model (TAM) to assess user acceptance and behavioral intentions \cite{islam2023factors}. Recent studies in heritage tourism technology adoption demonstrate that perceived usefulness, ease of use, and cultural considerations significantly influence user acceptance of digital tourism platforms \cite{islam2023factors}. This theoretical framework guided our evaluation of the Pulau Pal chatbot system and informed our user experience design decisions.
+
+The assessment of technology acceptance was particularly important given the diverse technological literacy levels among stakeholders in heritage tourism contexts. Research by Megawati et al. (2025) shows that technology adoption in tourism communities is moderated by factors such as digital infrastructure access, cultural attitudes toward technology, and perceived benefits for community empowerment \cite{megawati2025moderating}.
+
+\subsection{Development Methodology Integration}
+
+The technical development followed an agile methodology with iterative development cycles, chosen specifically to accommodate the collaborative nature of PAR and the international coordination requirements of the GIPE++ program. Agile methodology was selected over traditional waterfall approaches because it enables continuous stakeholder feedback integration, supports iterative improvement based on user testing, and facilitates international team coordination across different time zones and cultural contexts.
+
+The integration of PAR principles with agile development created a hybrid approach where community stakeholders became active participants in the development process rather than passive subjects of study. This methodological integration was essential for ensuring that the technological solution remained grounded in community needs throughout the development lifecycle.
+
+Table \ref{tab:development-phases} outlines the structured development approach:
+
+\begin{table}[h]
+\centering
+\caption{Development Phases}
+\label{tab:development-phases}
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}p{2.5cm}Xp{1.5cm}@{}}
+\toprule
+\textbf{Phase} & \textbf{Key Activities} & \textbf{Duration} \\
+\midrule
+Requirements & Stakeholder interviews, documentation & 4 weeks \\
+Core Development & Frontend/backend development & 8 weeks \\
+AI Integration & Chatbot development, API integration & 6 weeks \\
+Testing & User acceptance testing, optimization & 4 weeks \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Ethical Considerations and Limitations}
+
+The participatory nature of this research required careful attention to ethical considerations, particularly regarding community consent, cultural sensitivity, and data privacy. All stakeholder engagement followed informed consent protocols, and community feedback was incorporated into both the research process and technology development. The international collaboration framework provided multiple perspectives on ethical considerations across different cultural contexts.
+
+Methodological limitations include the project's time constraints (March-July 2025), which limited the extent of longitudinal impact assessment, and the focus on a single island destination, which may limit generalizability to other heritage tourism contexts. However, the detailed documentation of the methodology and development process supports transferability to similar international collaboration projects and island tourism digitalization initiatives.
+
+\subsection{Team Structure and Collaboration Framework}
+
+The GIPE++ Digital Platform stream comprised an international team as detailed in Table \ref{tab:team-structure}:
+
+\begin{table}[h]
+\centering
+\caption{International Team Structure}
+\label{tab:team-structure}
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}p{1.8cm}cp{2.2cm}X@{}}
+\toprule
+\textbf{Country} & \textbf{No.} & \textbf{Role} & \textbf{Responsibilities} \\
+\midrule
+Namibia & 2 & Frontend/Backend & React.js, Node.js, database \\
+Peru & 1 & Backend & API development, security \\
+Indonesia & 2 & Design/Strategy & UI/UX, stakeholder liaison \\
+Germany & 3 & Management & Coordination, planning \\
+\midrule
+\multicolumn{4}{l}{\textbf{Supervisor:} Dr. Sebastian Mukumbira} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The international team structure was designed to leverage diverse cultural perspectives and technical expertise while ensuring meaningful representation from the destination country (Indonesia) in design and stakeholder engagement roles. This structure reflects PAR principles by ensuring that local perspectives remained central to the development process.
+
+\section{Process Description}
+
+Our development process followed an agile methodology, incorporating user-centered design principles and emerging technology integration as part of the GIPE++ Digital Platform stream requirements. We maintain that this approach was essential for creating a solution that addresses real-world challenges while leveraging cutting-edge technologies and fostering international collaboration.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.48\linewidth]{collabo.jpg}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{colma.jpg}
+    \caption{International collaboration sessions during the GIPE++ spring school, showcasing team members from multiple countries working together on the digital platform development.}
+    \label{fig:collaboration}
+\end{figure}
+
+The project timeline commenced with an initial stakeholder meeting in March involving all project participants, introducing the project concept, client requirements, and facilitating task assignment based on student expertise and interests. Subsequently, we conducted comprehensive software requirement elicitation sessions with the client, primarily facilitated by Indonesian students who visited the client's workplace. This process involved iterative document drafting and client feedback incorporation to align system functionality with existing workflows and cultural expectations.
+
+The development proceeded through distinct phases: interface design using Figma with iterative client approval, Phase 1 involving core web development and overall interface creation while simultaneously establishing backend infrastructure, and Phase 2 focusing on chatbot design and seamless integration with the main website platform.
+
+\subsection{Technology Stack Selection}
+
+The backend development utilized Node.js with TypeScript, providing type safety and modern JavaScript features essential for scalable web applications. We implemented Express.js as the web framework, chosen for its flexibility, extensive middleware ecosystem, and robust routing capabilities. The backend architecture follows RESTful API principles with comprehensive error handling and input validation using express-validator.
+
+For data persistence, we integrated PostgreSQL database hosted on Supabase infrastructure, utilizing direct PostgreSQL connections through the \texttt{pg} library rather than Supabase's client SDK. This approach provides greater control over database operations while maintaining the benefits of managed hosting. The database configuration includes connection pooling with SSL support for secure data transmission.
+
+\begin{figure}[h]  
+    \centering
+    \includegraphics[width=0.9\linewidth]{DIAGRAM.png}  
+    \caption{Technical Architecture Diagram - Comprehensive overview of the system's technology stack, showcasing the integration between frontend (React/Tailwind), backend (Node.js/Express), database (PostgreSQL/Supabase), and AI services (Google Gemini).}
+    \label{fig:techstack}
+\end{figure}
+
+The frontend development employed React.js with modern functional components, hooks, and Tailwind CSS, ensuring a responsive and interactive user interface. We integrated contemporary styling approaches for rapid UI development with consistent design patterns optimized for mobile and desktop experiences.
+
+\subsection{AI Integration - Google Gemini Implementation}
+
+The AI chatbot implementation represents the core emerging technology component of our system, utilizing Google's Gemini 2.0 Flash model rather than traditional chatbot frameworks. We trained this model to access and process Untung Jawa website information for homestay and activities data. The chatbot is customized to strictly provide information on Untung Jawa and not other tourist destinations. We postulate that this choice provides superior natural language understanding and contextual awareness compared to rule-based alternatives, aligning with the GIPE++ program's emphasis on innovative technology adoption.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{image.png}
+    \caption{Pulau Pal AI Chatbot Interface - Demonstrating the multi-modal interaction system with Chat, Discover, and Plan Trip functionalities, showcasing the island-themed design and user-friendly interface.}
+    \label{fig:chatbot-interface}
+\end{figure}
+
+The chatbot system, named "Pulau Pal," incorporates several advanced features:
+
+\begin{itemize}
+    \item \textbf{Intelligent Query Classification:} Distinguishes between tourism-related and general knowledge queries
+    \item \textbf{Multi-Language Translation:} The chatbot is trained to communicate in English and Indonesian Bahasa language, with 90\% accuracy in Bahasa translation as validated by Indonesian students
+    \item \textbf{Context-Aware Responses:} Maintains conversation history and understands current page context
+    \item \textbf{Dynamic Knowledge Integration:} Real-time access to homestay availability and booking data
+    \item \textbf{Untung Jawa Cultural Integration:} Real-time access to cultural practices, local cuisine, festivities, weather information, and general expectations of the Untung Jawa community
+    \item \textbf{Multi-Modal Interface:} Three interaction modes - Chat, Discover, and Plan Trip tabs
+    \item \textbf{Fallback Mechanisms:} Graceful degradation when API services are unavailable
+\end{itemize}
+
+The implementation includes sophisticated prompt engineering with system-level instructions that define the chatbot's personality as a tourism assistant while maintaining safety guidelines and content filtering through Gemini's built-in safety settings.
+
+\subsection{Database Design and Implementation}
+
+We designed a comprehensive relational database schema supporting multiple user types, accommodation management, and booking operations. The schema includes eleven interconnected tables:
+
+\begin{itemize}
+    \item \textbf{User Management:} \texttt{admin\_users} and \texttt{landing\_page\_user} tables with role-based access control
+    \item \textbf{Accommodation System:} \texttt{homestay}, \texttt{homestayRoom}, and \texttt{homestayImages} tables supporting detailed property management
+    \item \textbf{Feature Management:} \texttt{room\_features} and \texttt{relation\_feature\_room} tables enabling flexible amenity assignment
+    \item \textbf{Booking Operations:} \texttt{booking} table with comprehensive reservation tracking
+    \item \textbf{Business Logic:} \texttt{reviews}, \texttt{payments}, and \texttt{notifications} tables supporting complete business workflows
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{DatabaseTable.PNG}
+    \caption{Simplified Entity-Relationship Diagram (ERD) of the core database schema for the homestay booking system, illustrating key relationships between users, homestays, rooms, bookings, and payments.}
+    \label{fig:database-erd}
+\end{figure}
+
+The database utilizes PostgreSQL enums for status fields, ensuring data integrity and consistent state management across the application.
+
+\subsection{API Development and Security}
+
+RESTful API endpoints were developed following industry best practices, including proper HTTP status codes, consistent response formats, and comprehensive error handling. The API architecture includes:
+
+\begin{itemize}
+    \item \textbf{Authentication:} JWT-based authentication with bcrypt password hashing
+    \item \textbf{Authorization:} Role-based access control for different user types
+    \item \textbf{Validation:} Input validation using express-validator for all endpoints
+    \item \textbf{Security:} CORS configuration, SQL injection prevention, and rate limiting considerations
+    \item \textbf{Email Integration:} Nodemailer integration for booking confirmations and notifications
+\end{itemize}
+
+\subsection{Technical Architecture}
+
+The system architecture follows a modern three-tier model with microservices considerations:
+
+\textbf{Presentation Layer:} React.js and Tailwind CSS frontend with responsive design, featuring the Gemini-powered chatbot interface with island-themed UI elements including mystical animations and gradient backgrounds. The frontend is optimized for deployment on Vercel platform for global accessibility.
+
+\textbf{Application Layer:} Node.js/Express.js backend providing RESTful APIs, JWT authentication services, and AI chatbot integration. The backend includes comprehensive middleware for error handling, CORS management, and request validation. The system is designed for deployment on Railway platform with environment-based configuration.
+
+\textbf{Data Layer:} PostgreSQL database hosted on Supabase infrastructure, providing ACID compliance, real-time capabilities, and automated backups. The database design supports complex queries for availability checking and booking management.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{architecture.png}
+    \caption{Three-Tier System Architecture - Illustrating the separation of concerns between Presentation Layer (React.js/Vercel), Application Layer (Node.js/Railway), and Data Layer (PostgreSQL/Supabase), with AI integration and security components.}
+    \label{fig:system-architecture}
+\end{figure}
+
+\section{Description of End Result/Prototype}
+
+The resulting platform consists of a comprehensive website and AI-powered chatbot providing a complete overview of Pulau Untung Jawa. This system demonstrates effective integration of emerging technologies in addressing real-world tourism challenges while showcasing international academic cooperation.
+
+\begin{figure}[h]  
+    \centering
+    \includegraphics[width=0.9\linewidth]{HOMESTAY PIC.PNG}  
+    \caption{Homestay Booking Interface - Showcasing the user-friendly design with detailed room information, high-quality images, and seamless booking functionality that enhances the tourist experience.}
+    \label{fig:homestay-interface}
+\end{figure}
+
+\subsection{User Stories and System Functionality}
+
+\textbf{Tourist User Stories:}
+\begin{itemize}
+    \item As a tourist, I want to browse available homestays with detailed room information and high-quality images
+    \item As a tourist, I want to view the list of activities available on the island with their respective prices
+    \item As a tourist, I want to interact with "Pulau Pal" AI chatbot to get personalized island recommendations
+    \item As a tourist, I want to book specific rooms with real-time availability checking and secure payment processing
+    \item As a tourist, I want to receive email confirmations and manage my booking status
+    \item As a tourist, I want to learn about restaurants with the best local cuisine, festivities, and overall culture of Untung Jawa island
+    \item As a tourist, I want to know what to pack for my Untung Jawa island visit
+    \item As a tourist, I want to leave reviews and ratings for my accommodation experience
+\end{itemize}
+
+\textbf{Homestay Owner User Stories:}
+\begin{itemize}
+    \item As a homestay owner, I want to manage multiple room types with individual pricing and features
+    \item As a homestay owner, I want to upload and organize property images with primary image designation
+    \item As a homestay owner, I want to receive and manage booking requests with automated notifications
+    \item As a homestay owner, I want to track payment status and booking history through an admin dashboard
+    \item As a homestay owner, I want to manage all activities on the website and ensure they are updated accordingly
+    \item As a homestay owner, I want to respond to customer reviews and maintain property ratings
+\end{itemize}
+
+\subsection{Technical Architecture}
+
+The system architecture follows a modern three-tier model with microservices considerations:
+
+\textbf{Presentation Layer:} React.js and Tailwind CSS frontend with responsive design, featuring the Gemini-powered chatbot interface with island-themed UI elements including mystical animations and gradient backgrounds. The frontend is optimized for deployment on Vercel platform for global accessibility.
+
+\textbf{Application Layer:} Node.js/Express.js backend providing RESTful APIs, JWT authentication services, and AI chatbot integration. The backend includes comprehensive middleware for error handling, CORS management, and request validation. The system is designed for deployment on Railway platform with environment-based configuration.
+
+\textbf{Data Layer:} PostgreSQL database hosted on Supabase infrastructure, providing ACID compliance, real-time capabilities, and automated backups. The database design supports complex queries for availability checking and booking management.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{architecture.png}
+    \caption{Three-Tier System Architecture - Illustrating the separation of concerns between Presentation Layer (React.js/Vercel), Application Layer (Node.js/Railway), and Data Layer (PostgreSQL/Supabase), with AI integration and security components.}
+    \label{fig:system-architecture}
+\end{figure}
+
+\subsection{Key System Features}
+
+\begin{itemize}
+    \item \textbf{Smart Room Search:} AI-powered search with natural language queries and availability filtering
+    \item \textbf{Real-time Booking System:} Instant availability checking with conflict prevention and booking confirmation
+    \item \textbf{Comprehensive Payment Integration:} Secure payment processing with multiple payment method support
+    \item \textbf{Advanced Review System:} Rating mechanisms with moderation capabilities
+    \item \textbf{Admin Dashboard:} Complete property management interface with analytics and reporting
+    \item \textbf{Email Automation:} Automated booking confirmations and status updates using Nodemailer
+    \item \textbf{Image Management:} High-quality image upload and optimization with primary image designation
+    \item \textbf{Mobile-First Design:} Responsive interface optimized for all device types
+\end{itemize}
+
+\section{Reflection}
+
+\subsection{Challenges Experienced}
+
+During the development process, we encountered several significant challenges that provided valuable learning experiences within the GIPE++ collaborative framework. The integration of Google Gemini AI presented initial complexity in managing API costs and response optimization. We believe that careful prompt engineering and response caching were crucial for creating an efficient and cost-effective AI implementation. The challenge of maintaining context across conversation turns required sophisticated state management and conversation history tracking.
+
+Database design and migration challenges emerged when working with PostgreSQL on Supabase, particularly in managing concurrent booking requests and preventing double-bookings. We maintain that implementing proper transaction management and optimistic locking mechanisms was essential for data consistency. The complexity of the room-feature relationship system required careful normalization to support flexible amenity assignment while maintaining query performance.
+
+Cross-origin resource sharing (CORS) configuration presented deployment challenges when integrating the React frontend and Node.js backend across different hosting platforms (Vercel and Railway). The solution required careful configuration of environment variables and security policies to support both development and production environments.
+
+Email integration using Nodemailer required extensive testing across different email providers to ensure reliable delivery of booking confirmations and notifications. We argue that implementing proper error handling and retry mechanisms was essential for maintaining user trust in the booking system.
+
+The international collaboration aspect of GIPE++ also presented coordination challenges, requiring effective communication across different time zones and cultural contexts while maintaining project momentum and technical consistency.
+
+\subsection{Future Work}
+
+We argue that several enhancements could further improve the platform's effectiveness and extend the GIPE++ collaboration impact:
+
+\begin{itemize}
+    \item \textbf{Advanced Machine Learning:} Implementation of recommendation algorithms based on user behavior patterns and booking history
+    \item \textbf{IoT Integration:} Smart home features for homestays including automated check-in systems and environmental monitoring
+    \item \textbf{Blockchain Payment Systems:} Secure and transparent payment processing using cryptocurrency for international transactions
+    \item \textbf{Augmented Reality Features:} Virtual tours and AR-enhanced local information for immersive destination exploration
+    \item \textbf{Predictive Analytics:} Demand forecasting and dynamic pricing optimization based on seasonal patterns and local events
+    \item \textbf{Voice Interface Integration:} Voice-activated chatbot interactions for hands-free tourism assistance
+    \item \textbf{Real-time Translation:} Multi-language support expansion with real-time translation capabilities
+    \item \textbf{GIPE++ Network Expansion:} Integration with other GIPE++ Digital Platform projects for cross-destination tourism experiences
+    \item \textbf{Metaverse Integration:} Future implementation of immersive virtual experiences following Gajdošík and Puchalík's metaverse tourism framework
+\end{itemize}
+
+\subsection{Possible Contexts of Applications}
+
+The developed platform demonstrates broader applicability beyond Pulau Untung Jawa, particularly within the GIPE++ network and similar international collaboration contexts. We postulate that similar implementations could benefit:
+
+\begin{itemize}
+    \item \textbf{Indonesian Archipelago:} Other Indonesian islands seeking digital transformation in tourism management
+    \item \textbf{Developing Tourism Markets:} Small-scale tourism destinations in developing countries requiring affordable digital solutions
+    \item \textbf{Heritage Tourism Sites:} Cultural and historical destinations requiring digital preservation and promotion
+    \item \textbf{Community-Based Tourism:} Local community initiatives seeking to integrate technology while preserving cultural authenticity
+    \item \textbf{Sustainable Tourism Projects:} Eco-tourism destinations requiring visitor management and environmental impact monitoring
+    \item \textbf{Rural Tourism Development:} Remote destinations needing digital connectivity to global tourism markets
+    \item \textbf{GIPE++ Partner Destinations:} Other locations within the GIPE++ network seeking similar digital transformation solutions
+\end{itemize}
+
+The integration of AI technologies in tourism platforms represents a growing trend that could revolutionize how tourists interact with destinations and how local businesses manage their operations. We believe that this project demonstrates the potential for emerging technologies to create meaningful impact in tourism development while supporting local economic growth and cultural preservation through international academic collaboration.
+
+\section{Conclusion}
+
+This project successfully demonstrates the implementation of emerging technologies in heritage tourism digitalization, specifically addressing the challenges faced by Pulau Untung Jawa Island through the Global Intercultural Project Experience (GIPE++) Digital Platform stream. The integration of Google Gemini AI-powered chatbots, modern web technologies, and comprehensive booking systems creates a robust platform that enhances tourist experience while supporting local business development.
+
+We maintain that the success of this implementation validates the potential for digital transformation in island tourism contexts through international academic collaboration. The platform not only addresses immediate operational challenges but also establishes a foundation for future technological enhancements and sustainable tourism development. The sophisticated use of Google's Gemini AI for contextual tourism assistance represents a significant advancement in applying large language models to domain-specific applications within the heritage tourism sector.
+
+The project's alignment with the Global Intercultural Project Experience (GIPE++) objectives demonstrates how academic collaboration between Namibian and international partners can produce practical solutions with real-world impact. We argue that this approach to technology integration in tourism could serve as a model for similar destinations seeking digital transformation while preserving cultural heritage and promoting sustainable development through the GIPE++ network.
+
+The technical architecture combining Node.js/TypeScript backend, React frontend, PostgreSQL database, and AI integration provides a scalable foundation that can be adapted to various tourism contexts within and beyond the GIPE++ framework. We believe that the lessons learned from this implementation will contribute to the broader understanding of emerging technology applications in heritage tourism digitalization and serve as a reference for future GIPE++ Digital Platform stream projects.
+
+\section*{AI Content Declaration}
+
+\textit{Portions of this document's literature review section were enhanced using AI-assisted research tools to identify relevant academic sources and improve citation formatting. All referenced studies are authentic peer-reviewed publications that have been individually verified for accuracy and authenticity. The analysis and interpretation of the literature remains original work by the authors. The technical implementation details and project descriptions are entirely based on original development work conducted by the GIPE++ Digital Platform team.}
+
+\bibliographystyle{ACM-Reference-Format}
+\begin{thebibliography}{10}
+
+\bibitem{beck2001agile}
+Beck, K., Beedle, M., van Bennekum, A., Cockburn, A., Cunningham, W., Fowler, M., Grenning, J., Highsmith, J., Hunt, A., Jeffries, R., et al. 2001. Manifesto for agile software development. \textit{Agile Alliance}.
+
+\bibitem{creswell2017research}
+Creswell, J.W. and Plano Clark, V.L. 2017. \textit{Designing and Conducting Mixed Methods Research}. Sage Publications.
+
+\bibitem{creswell2021concise}
+Creswell, J.W. 2021. \textit{A Concise Introduction to Mixed Methods Research}. 2nd ed. Sage Publications.
+
+\bibitem{khoa2024heritage}
+Khoa, B.T. and Huynh, T.T. 2024. How to improve the destination choice in heritage tourism through tourism digitalization: Case of Vietnam. In \textit{2024 2nd International Conference on Sustaining Heritage: Embracing Technological Advancements (ICSH)}. IEEE, 26-29. DOI: 10.1109/ICSH62408.2024.10779832
+
+\bibitem{oecd2024ai}
+OECD. 2024. Artificial Intelligence and tourism: G7/OECD policy paper. \textit{OECD Tourism Papers}, 2024/02, OECD Publishing, Paris. DOI: 10.1787/3f9a4d8d-en
+
+\bibitem{margatan2025sustainable}
+Margatan, K. 2025. Building Sustainable Tourism: The Adaptation of Digital Transformation on Travel Agencys and Impact on Economic Growth. \textit{Dinasti International Journal of Economics, Finance \& Accounting} 5, 2 (2025), 234-251.
+
+\bibitem{wu2024digital}
+Wu, W., Xu, C., Zhao, M., Li, X., and Law, R. 2024. Digital Tourism and Smart Development: State-of-the-Art Review. \textit{Sustainability} 16, 23 (2024), 10382. DOI: 10.3390/su162310382
+
+\bibitem{elarchi2023digital}
+El Archi, Y., Benbba, B., Kabil, M., and Dávid, L.D. 2023. Digital Technologies for Sustainable Tourism Destinations: State of the Art and Research Agenda. \textit{Administrative Sciences} 13, 8 (2023), 184. DOI: 10.3390/admsci13080184
+
+\bibitem{gajdosik2024metaverse}
+Gajdošík, T. and Puchalík, T. 2024. Metaverse Applications for Smart Tourism Businesses. In \textit{Lecture Notes in Networks and Systems}, vol. 1191, pp. 385-393. Springer. DOI: 10.1007/978-3-031-74828-8\_34
+
+\bibitem{gipe2025program}
+GIPE++. 2025. Global Intercultural Project Experience. Westphalian University of Applied Sciences. Retrieved from https://gipe.thm-it.de/
+
+\bibitem{gretzel2015smart}
+Gretzel, U., Sigala, M., Xiang, Z., and Koo, C. 2015. Smart tourism: foundations and developments. \textit{Electronic Markets} 25, 3 (2015), 179-188.
+
+\bibitem{megawati2025moderating}
+Megawati, V., Otok, B.W., and Purnomo, J.D.T. 2025. Moderating Technology Acceptance Model on Resident Empowerment in Support for Sustainable Tourism. \textit{Sustainability} 17, 9 (2025), 4217. DOI: 10.3390/su17094217
+
+\bibitem{mctaggart1997participatory}
+McTaggart, R. 1997. \textit{Participatory Action Research: International Contexts and Consequences}. SUNY Press.
+
+\bibitem{reason2006handbook}
+Reason, P. and Bradbury, H. 2006. \textit{Handbook of Action Research}. Sage Publications.
+
+\bibitem{sifolo2025transformative}
+Sifolo, P.P.S. 2025. Transformative Transdisciplinary Approaches to Digitalisation in the Tourism Supply Network: Enhancing Resilience and Collaboration in Gauteng and KwaZulu-Natal. \textit{Tourism and Hospitality} 6, 2 (2025), 95. DOI: 10.3390/tourhosp6020095
+
+\bibitem{islam2023factors}
+Islam, M.N. 2023. Factors affecting adoption of self-service E-ticketing technology: A study on heritage sites in Bangladesh. \textit{Heliyon} 9, 3 (2023), e14691. DOI: 10.1016/j.heliyon.2023.e14691
+
+\bibitem{tashakkori2010mixed}
+Tashakkori, A. and Teddlie, C. 2010. \textit{Sage Handbook of Mixed Methods in Social \& Behavioral Research}. 2nd ed. Sage Publications.
+
+\end{thebibliography}
+
+\end{document} 

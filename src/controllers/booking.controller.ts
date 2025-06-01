@@ -289,22 +289,22 @@ export const getUserBookings = async (
       return next(new AppError('Invalid user ID', 400));
     }
     
-    // Check if the requesting user is authorized to view these bookings
-    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    // Check if the requesting user is authenticated
+    const user = req.user as any; // Use any to handle both types
     if (!user || !user.id) {
       return next(new AppError('User not authenticated', 401));
     }
 
-    // Check if user is admin or regular user
+    // Check if user is admin (from admin_users table) or landing page user
     const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
-    const isRegularUser = 'role' in user && Object.values(UserRole).includes(user.role as UserRole);
+    const isLandingUser = user.user_type === 'landing_user' || user.type === 'user';
 
-    if (!isAdmin && !isRegularUser) {
+    if (!isAdmin && !isLandingUser) {
       return next(new AppError('Invalid user type', 403));
     }
 
-    // Users can only view their own bookings unless they're admins
-    if (isRegularUser && userIdParam !== user.id) {
+    // Landing page users can only view their own bookings unless they're admins
+    if (isLandingUser && userIdParam !== user.id) {
       return next(new AppError('Not authorized to access these bookings', 403));
     }
 
@@ -348,7 +348,7 @@ export const getMyBookings = async (
 ) => {
   try {
     // Check if the user is authenticated
-    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    const user = req.user as any; // Use any to handle both types
     if (!user || !user.id) {
       return next(new AppError('User not authenticated', 401));
     }
@@ -433,27 +433,27 @@ export const updateBookingStatus = async (
     const booking = rows[0];
 
     // Check authorization
-    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    const user = req.user as any; // Use any to handle both types
     if (!user || !user.id) {
       return next(new AppError('User not authenticated', 401));
     }
 
-    // Check if user is admin or regular user
+    // Check if user is admin (from admin_users table) or landing page user
     const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
-    const isRegularUser = 'role' in user && Object.values(UserRole).includes(user.role as UserRole);
+    const isLandingUser = user.user_type === 'landing_user' || user.type === 'user';
 
-    if (!isAdmin && !isRegularUser) {
+    if (!isAdmin && !isLandingUser) {
       return next(new AppError('Invalid user type', 403));
     }
 
     // Only allow status updates if:
-    // 1. User is the booking owner (regular user) - but they can only cancel
+    // 1. User is the booking owner (landing page user) - but they can only cancel
     // 2. User is an admin
-    if (isRegularUser && booking.user_id !== user.id) {
+    if (isLandingUser && booking.user_id !== user.id) {
       return next(new AppError('Not authorized to update this booking', 403));
     }
 
-    if (isRegularUser && status !== BookingStatus.CANCELLED) {
+    if (isLandingUser && status !== BookingStatus.CANCELLED) {
       return next(new AppError('Regular users can only cancel bookings', 403));
     }
 
@@ -893,16 +893,16 @@ export const getBookingsByOwner = async (
   next: NextFunction
 ) => {
   try {
-    const user = req.user as AdminJwtPayload | UserJwtPayload;
+    const user = req.user as any; // Use any to handle both types
     if (!user || !user.id) {
       return next(new AppError('User not authenticated', 401));
     }
 
-    // Check if user is admin or regular user
+    // Check if user is admin (from admin_users table) or landing page user
     const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
-    const isRegularUser = 'role' in user && Object.values(UserRole).includes(user.role as UserRole);
+    const isLandingUser = user.user_type === 'landing_user' || user.type === 'user';
 
-    if (!isAdmin && !isRegularUser) {
+    if (!isAdmin && !isLandingUser) {
       return next(new AppError('Invalid user type', 403));
     }
 

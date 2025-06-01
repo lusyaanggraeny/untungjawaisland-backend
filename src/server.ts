@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth.routes';
 import paymentRoutes from './routes/payment.routes';
 import { landingUserRoutes } from './routes/landing_user.routes';
 import { bookingRoutes } from './routes/booking.routes';
+import roomRoutes from './routes/room.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { testConnection } from './config/database';
 
@@ -33,7 +34,8 @@ app.get('/', (req, res) => {
       homestays: '/api/homestays',
       payments: '/api/payments',
       users: '/api/users',
-      bookings: '/api/bookings'
+      bookings: '/api/bookings',
+      rooms: '/api/rooms'
     }
   });
 });
@@ -44,6 +46,7 @@ app.use('/api/homestays', homestayRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/users', landingUserRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/rooms', roomRoutes);
 
 // Error handling
 app.use(errorHandler);

@@ -21,7 +21,9 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
         (
           SELECT json_agg(json_build_object(
             'id', hr.id, 
+            'room_id', hr.id,
             'title', hr.title, 
+            'name', hr.title,
             'description', hr.description,
             'status', hr.status,
             'room_number', hr.room_number,
@@ -96,7 +98,9 @@ export const getHomestayById = async (req: Request, res: Response, next: NextFun
         (
           SELECT json_agg(json_build_object(
             'id', hr.id, 
+            'room_id', hr.id,
             'title', hr.title, 
+            'name', hr.title,
             'description', hr.description,
             'status', hr.status,
             'room_number', hr.room_number,
