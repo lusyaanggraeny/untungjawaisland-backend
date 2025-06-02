@@ -189,7 +189,7 @@ export const createBooking = async (
             bookingNumber: bookingNumber,
             customerName: user.name,
             homestayName: room.homestay_title,
-            roomName: room.title,
+            roomName: room.room_number ? `${room.title} (Room ${room.room_number})` : room.title,
             checkInDate: formattedStartDate,
             checkOutDate: formattedEndDate,
             totalPrice: totalPrice,
@@ -213,7 +213,7 @@ export const createBooking = async (
               bookingNumber: bookingNumber,
               customerName: user.name,
               homestayName: room.homestay_title,
-              roomName: room.title,
+              roomName: room.room_number ? `${room.title} (Room ${room.room_number})` : room.title,
               checkInDate: formattedStartDate,
               checkOutDate: formattedEndDate,
               totalPrice: totalPrice,
@@ -420,9 +420,15 @@ export const updateBookingStatus = async (
       return next(new AppError('Invalid booking status', 400));
     }
 
-    // Get the booking
+    // Get the booking with room and homestay details
     const { rows } = await client.query(
-      'SELECT * FROM "booking" WHERE id = $1',
+      `SELECT b.*, 
+              hr.title as room_title, hr.room_number,
+              h.id as homestay_id, h.title as homestay_title, h.user_id as owner_id
+       FROM "booking" b
+       JOIN "homestayRoom" hr ON b.room_id = hr.id
+       JOIN "homestay" h ON hr.homestay_id = h.id
+       WHERE b.id = $1`,
       [id]
     );
 
@@ -475,6 +481,68 @@ export const updateBookingStatus = async (
     );
 
     await client.query('COMMIT');
+
+    // Send email notification for status update
+    try {
+      let customerEmail = '';
+      let customerName = '';
+      
+      // Check if this is an authenticated user booking or guest booking
+      if (booking.user_id) {
+        // Get authenticated user details
+        const { rows: userRows } = await pool.query(
+          'SELECT name, email FROM "landing_page_user" WHERE id = $1',
+          [booking.user_id]
+        );
+        
+        if (userRows.length > 0) {
+          customerEmail = userRows[0].email;
+          customerName = userRows[0].name;
+        }
+      } else {
+        // Parse guest information from notes field
+        const notesMatch = booking.notes?.match(/Guest: ([^,]+), Email: ([^,]+), Phone: (.+)/);
+        if (notesMatch) {
+          customerName = notesMatch[1];
+          customerEmail = notesMatch[2];
+        }
+      }
+      
+      if (customerEmail && customerName) {
+        // Format dates for email
+        const formattedStartDate = new Date(booking.start_date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        const formattedEndDate = new Date(booking.end_date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        // Send status update email
+        await sendBookingStatusUpdate(customerEmail, {
+          bookingNumber: booking.booking_number,
+          customerName: customerName,
+          homestayName: booking.homestay_title,
+          roomName: booking.room_number ? `${booking.room_title} (Room ${booking.room_number})` : booking.room_title,
+          checkInDate: formattedStartDate,
+          checkOutDate: formattedEndDate,
+          totalPrice: booking.total_price,
+          paymentStatus: booking.is_paid ? 'Paid' : 'Pending',
+          bookingStatus: status,
+          guestCount: booking.number_of_guests,
+          specialRequests: booking.special_requests || ''
+        }, status).catch(err => console.error('Error sending status update email:', err));
+      }
+    } catch (emailError) {
+      // Don't fail the request if email sending fails
+      console.error('Error sending status update email:', emailError);
+    }
 
     res.status(200).json({
       status: 'success',
@@ -646,7 +714,7 @@ export const createGuestBooking = async (
         bookingNumber: bookingNumber,
         customerName: guest_name,
         homestayName: room.homestay_title,
-        roomName: room.title,
+        roomName: room.room_number ? `${room.title} (Room ${room.room_number})` : room.title,
         checkInDate: formattedStartDate,
         checkOutDate: formattedEndDate,
         totalPrice: totalPrice,
@@ -670,7 +738,7 @@ export const createGuestBooking = async (
           bookingNumber: bookingNumber,
           customerName: guest_name,
           homestayName: room.homestay_title,
-          roomName: room.title,
+          roomName: room.room_number ? `${room.title} (Room ${room.room_number})` : room.title,
           checkInDate: formattedStartDate,
           checkOutDate: formattedEndDate,
           totalPrice: totalPrice,
@@ -893,37 +961,154 @@ export const getBookingsByOwner = async (
   next: NextFunction
 ) => {
   try {
-    const user = req.user as any; // Use any to handle both types
-    if (!user || !user.id) {
-      return next(new AppError('User not authenticated', 401));
+    const { ownerId } = req.params;
+    
+    // Parse query parameters for filtering
+    const status = req.query.status as string | undefined;
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const page = parseInt(req.query.page as string || '1');
+    const limit = parseInt(req.query.limit as string || '20');
+    const offset = (page - 1) * limit;
+
+    console.log(`Getting bookings for owner: ${ownerId}`);
+
+    // Build the query with LEFT JOIN to get user info
+    let query = `
+      SELECT b.*, 
+             hr.title as room_title, hr.room_number,
+             h.id as homestay_id, h.title as homestay_title, h.user_id as owner_id,
+             u.name as guest_name, u.email as guest_email
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      LEFT JOIN "landing_page_user" u ON b.user_id = u.id
+      WHERE h.user_id = $1
+    `;
+    
+    const queryParams: any[] = [ownerId];
+    
+    // Add filters
+    if (status) {
+      query += ` AND b.status = $${queryParams.length + 1}`;
+      queryParams.push(status);
     }
-
-    // Check if user is admin (from admin_users table) or landing page user
-    const isAdmin = 'role' in user && Object.values(AdminUserRole).includes(user.role as AdminUserRole);
-    const isLandingUser = user.user_type === 'landing_user' || user.type === 'user';
-
-    if (!isAdmin && !isLandingUser) {
-      return next(new AppError('Invalid user type', 403));
+    
+    if (startDate) {
+      query += ` AND b.start_date >= $${queryParams.length + 1}`;
+      queryParams.push(startDate);
     }
+    
+    if (endDate) {
+      query += ` AND b.end_date <= $${queryParams.length + 1}`;
+      queryParams.push(endDate);
+    }
+    
+    // Add ORDER BY and pagination
+    query += ` ORDER BY b.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+    
+    console.log('Executing query:', query);
+    console.log('With parameters:', queryParams);
+    
+    // Execute query
+    const { rows } = await pool.query(query, queryParams);
+    
+    console.log(`Found ${rows.length} bookings for owner ${ownerId}`);
+    
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM "booking" b
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      WHERE h.user_id = $1
+      ${status ? `AND b.status = $2` : ''}
+      ${startDate ? `AND b.start_date >= $${status ? 2 : 1}` : ''}
+      ${endDate ? `AND b.end_date <= $${status && startDate ? 3 : status || startDate ? 2 : 1}` : ''}
+    `;
+    
+    const countParams = [ownerId];
+    if (status) countParams.push(status);
+    if (startDate) countParams.push(startDate);
+    if (endDate) countParams.push(endDate);
+    
+    const { rows: countResult } = await pool.query(countQuery, countParams);
+    const total = parseInt(countResult[0].total);
+    
+    // Format the data with proper guest info extraction
+    const bookings = rows.map(row => {
+      // Extract guest info from notes field if user_id is null
+      let guestName = row.guest_name;
+      let guestEmail = row.guest_email;
+      let guestPhone = '';
+      
+      // If no user linked, try to extract from notes field
+      if (!guestName && row.notes && row.notes.includes('Guest:')) {
+        const guestInfo = row.notes.match(/Guest: ([^,]+), Email: ([^,]+), Phone: (.+?)(?:\n|$)/);
+        if (guestInfo) {
+          guestName = guestInfo[1].trim();
+          guestEmail = guestInfo[2].trim();
+          guestPhone = guestInfo[3].trim();
+        }
+      }
+      
+      return {
+        id: row.id,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        room_id: row.room_id,
+        status: row.status,
+        is_paid: row.is_paid,
+        user_id: row.user_id,
+        booking_number: row.booking_number,
+        total_price: parseFloat(row.total_price), // Ensure numeric format
+        payment_method: row.payment_method,
+        check_in_time: row.check_in_time,
+        check_out_time: row.check_out_time,
+        number_of_guests: row.number_of_guests,
+        notes: row.notes,
+        special_requests: row.special_requests,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        // Frontend expects these fields
+        guest_name: guestName || 'Guest',
+        guest_email: guestEmail || '',
+        guest_phone: guestPhone || '',
+        // Also include check_in_date/check_out_date aliases for compatibility
+        check_in_date: row.start_date,
+        check_out_date: row.end_date,
+        // Include total_amount as alias for total_price
+        total_amount: parseFloat(row.total_price),
+        room: {
+          id: row.room_id,
+          title: row.room_title,
+          room_number: row.room_number
+        },
+        homestay: {
+          id: row.homestay_id,
+          title: row.homestay_title
+        }
+      };
+    });
 
-    const { rows } = await pool.query(
-      `SELECT b.*, 
-              hr.title as room_title,
-              h.title as homestay_title,
-              h.location as homestay_location
-       FROM "booking" b
-       JOIN "homestayRoom" hr ON b.room_id = hr.id
-       JOIN "homestay" h ON hr.homestay_id = h.id
-       WHERE b.user_id = $1
-       ORDER BY b.created_at DESC`,
-      [user.id]
-    );
+    // Log sample booking structure for debugging
+    if (bookings.length > 0) {
+      console.log('Sample booking structure:', JSON.stringify(bookings[0], null, 2).substring(0, 500) + '...');
+    }
 
     res.status(200).json({
       status: 'success',
-      data: rows
+      data: bookings,
+      meta: {
+        total,
+        page,
+        limit,
+        owner_id: ownerId
+      }
     });
   } catch (error) {
+    console.error('Error in getBookingsByOwner:', error);
     next(error);
   }
 };

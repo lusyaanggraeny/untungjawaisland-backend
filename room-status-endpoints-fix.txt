@@ -1,0 +1,261 @@
+// =================================================================
+// BACKEND FIX: Room Status Endpoints
+// =================================================================
+// Add this to your existing backend to fix the 404 errors
+
+// 1. UPDATE src/routes/room.routes.ts
+// Add these routes to your existing room routes file:
+
+import { Router } from 'express';
+import { 
+  getRoomById, 
+  getAllRooms,
+  updateRoomAvailability,  // NEW
+  updateRoomStatus        // NEW
+} from '../controllers/room.controller';
+
+const router = Router();
+
+// Existing routes
+router.get('/:id', getRoomById);
+router.get('/', getAllRooms);
+
+// NEW ROUTES - Add these
+router.put('/:id/availability', updateRoomAvailability);
+router.put('/:id/status', updateRoomStatus);
+
+export default router;
+
+// =================================================================
+// 2. UPDATE src/controllers/room.controller.ts
+// Add these new controller functions:
+
+import { Request, Response, NextFunction } from 'express';
+import { pool } from '../config/database';
+import { AppError } from '../middleware/error.middleware';
+
+// Existing functions (getRoomById, getAllRooms) stay the same...
+
+// NEW: Update room availability
+export const updateRoomAvailability = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { available, availability_status } = req.body;
+    
+    const roomId = parseInt(id, 10);
+    if (isNaN(roomId)) {
+      return next(new AppError('Invalid room ID', 400));
+    }
+
+    console.log(`[ROOM] Updating room ${roomId} availability:`, { available, availability_status });
+
+    // Determine the new status based on availability
+    let newStatus = 'available';
+    if (!available) {
+      newStatus = 'occupied';
+    } else if (availability_status) {
+      newStatus = availability_status;
+    }
+
+    // Update the room status in database
+    const { rows } = await pool.query(
+      `UPDATE "homestayRoom" 
+       SET status = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 
+       RETURNING id, status, title, room_number`,
+      [newStatus, roomId]
+    );
+
+    if (rows.length === 0) {
+      return next(new AppError('Room not found', 404));
+    }
+
+    const updatedRoom = rows[0];
+    console.log(`[ROOM] Successfully updated room ${roomId} status to: ${newStatus}`);
+
+    res.json({
+      status: 'success',
+      message: `Room ${roomId} availability updated`,
+      data: {
+        id: updatedRoom.id,
+        is_available: available,
+        availability_status: newStatus,
+        status: updatedRoom.status,
+        title: updatedRoom.title,
+        room_number: updatedRoom.room_number
+      }
+    });
+
+  } catch (error) {
+    console.error('[ROOM] Error updating room availability:', error);
+    next(error);
+  }
+};
+
+// NEW: Update room status directly
+export const updateRoomStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const roomId = parseInt(id, 10);
+    if (isNaN(roomId)) {
+      return next(new AppError('Invalid room ID', 400));
+    }
+
+    // Validate status
+    const validStatuses = ['available', 'occupied', 'maintenance'];
+    if (!validStatuses.includes(status)) {
+      return next(new AppError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400));
+    }
+
+    console.log(`[ROOM] Updating room ${roomId} status to: ${status}`);
+
+    // Update the room status in database
+    const { rows } = await pool.query(
+      `UPDATE "homestayRoom" 
+       SET status = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 
+       RETURNING id, status, title, room_number`,
+      [status, roomId]
+    );
+
+    if (rows.length === 0) {
+      return next(new AppError('Room not found', 404));
+    }
+
+    const updatedRoom = rows[0];
+    console.log(`[ROOM] Successfully updated room ${roomId} status to: ${status}`);
+
+    res.json({
+      status: 'success',
+      message: `Room ${roomId} status updated to ${status}`,
+      data: {
+        id: updatedRoom.id,
+        status: updatedRoom.status,
+        title: updatedRoom.title,
+        room_number: updatedRoom.room_number
+      }
+    });
+
+  } catch (error) {
+    console.error('[ROOM] Error updating room status:', error);
+    next(error);
+  }
+};
+
+// =================================================================
+// 3. UPDATE src/server.ts (if not already done)
+// Make sure room routes are mounted:
+
+import roomRoutes from './routes/room.routes';
+
+// Add this line if not already present:
+app.use('/api/rooms', roomRoutes);
+
+// =================================================================
+// 4. OPTIONAL: Add to src/types/room.types.ts
+
+export interface RoomStatusUpdateInput {
+  status: 'available' | 'occupied' | 'maintenance';
+}
+
+export interface RoomAvailabilityUpdateInput {
+  available: boolean;
+  availability_status?: 'available' | 'occupied' | 'maintenance';
+}
+
+// =================================================================
+// 5. TESTING ENDPOINTS
+
+// Test with curl or Postman:
+
+// Update room availability:
+// PUT http://localhost:5000/api/rooms/7/availability
+// Body: { "available": true, "availability_status": "available" }
+
+// Update room status:
+// PUT http://localhost:5000/api/rooms/7/status  
+// Body: { "status": "available" }
+
+// =================================================================
+// 6. INTEGRATION WITH BOOKING FLOW
+
+// When a booking is created, the room status is already updated to 'occupied'
+// in your booking controller. Now when the booking is completed/cancelled,
+// the frontend can call these endpoints to update the room back to 'available'.
+
+// =================================================================
+// 7. CONSOLE OUTPUT YOU SHOULD SEE
+
+// When frontend calls the endpoints, you should see:
+// [ROOM] Updating room 7 availability: { available: true, availability_status: 'available' }
+// [ROOM] Successfully updated room 7 status to: available
+
+// =================================================================
+// 8. HOMESTAY FALLBACK (ALTERNATIVE)
+
+// If you prefer to use homestay endpoints instead, add to homestay controller:
+
+export const updateHomestayStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const homestayId = parseInt(id, 10);
+    if (isNaN(homestayId)) {
+      return next(new AppError('Invalid homestay ID', 400));
+    }
+
+    console.log(`[HOMESTAY] Updating homestay ${homestayId} status to: ${status}`);
+
+    const { rows } = await pool.query(
+      `UPDATE "homestay" 
+       SET status = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 
+       RETURNING id, status, title`,
+      [status, homestayId]
+    );
+
+    if (rows.length === 0) {
+      return next(new AppError('Homestay not found', 404));
+    }
+
+    res.json({
+      status: 'success',
+      message: `Homestay ${homestayId} status updated to ${status}`,
+      data: rows[0]
+    });
+
+  } catch (error) {
+    console.error('[HOMESTAY] Error updating homestay status:', error);
+    next(error);
+  }
+};
+
+// And add route in homestay.routes.ts:
+// router.put('/:id/status', updateHomestayStatus);
+
+// =================================================================
+// QUICK DEPLOYMENT STEPS:
+
+// 1. Copy the room controller functions to your room.controller.ts
+// 2. Copy the route additions to your room.routes.ts  
+// 3. Restart your backend server
+// 4. Test with: PUT http://localhost:5000/api/rooms/7/availability
+// 5. Check console for success messages
+// 6. Complete a booking in frontend - should now work without 404 errors
+
+// ================================================================= 

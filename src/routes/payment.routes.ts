@@ -4,7 +4,8 @@ import {
   updatePaymentStatus,
   getPaymentById,
   getPaymentsByBooking,
-  getPaymentsByUser
+  getPaymentsByUser,
+  getAllPayments
 } from '../controllers/payment.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -13,19 +14,22 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticateToken);
 
+// Admin routes - GET all payments
+router.get('/', getAllPayments); // Get all payments (admin)
+
+// Get user's payments
+router.get('/user/payments', getPaymentsByUser);
+
+// Get payments by booking
+router.get('/booking/:booking_id', getPaymentsByBooking);
+
+// Get payment by ID
+router.get('/:id', getPaymentById);
+
 // Create a new payment
 router.post('/', createPayment);
 
 // Update payment status
 router.patch('/:id/status', updatePaymentStatus);
-
-// Get payment by ID
-router.get('/:id', getPaymentById);
-
-// Get payments by booking
-router.get('/booking/:booking_id', getPaymentsByBooking);
-
-// Get user's payments
-router.get('/user/payments', getPaymentsByUser);
 
 export default router; 

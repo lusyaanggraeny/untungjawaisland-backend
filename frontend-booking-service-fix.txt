@@ -1,0 +1,430 @@
+import axios from 'axios';
+
+// API Configuration using environment variable
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_TIMEOUT = 10000;
+
+// Log the API URL being used (for debugging)
+console.log('[BOOKING] Using API Base URL:', API_BASE_URL);
+
+// Create axios instance with proper configuration (NO default auth headers)
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor for debugging (but don't add auth automatically)
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`[API] Request to: ${config.baseURL}${config.url}`);
+    console.log(`[API] Method: ${config.method?.toUpperCase()}`);
+    if (config.data) {
+      console.log(`[API] Data:`, config.data);
+    }
+    if (config.headers?.Authorization) {
+      console.log(`[API] Auth: Token present`);
+    } else {
+      console.log(`[API] Auth: No token (public endpoint)`);
+    }
+    return config;
+  },
+  (error) => {
+    console.error('[API] Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`[API] Response from: ${response.config.url}`, response.data);
+    return response;
+  },
+  (error) => {
+    console.error(`[API] Response error from: ${error.config?.url}`, error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
+
+// Types for booking data
+interface GuestBookingData {
+  start_date: string;        // YYYY-MM-DD format
+  end_date: string;          // YYYY-MM-DD format
+  room_id: number;
+  number_of_guests: number;
+  guest_name: string;        // Required for guest bookings
+  guest_email: string;       // Required for guest bookings
+  guest_phone: string;       // Required for guest bookings
+  special_requests?: string;
+  notes?: string;
+  check_in_time?: string;    // HH:MM format
+  check_out_time?: string;   // HH:MM format
+  payment_method?: string;
+}
+
+interface AuthenticatedBookingData {
+  start_date: string;        // YYYY-MM-DD format
+  end_date: string;          // YYYY-MM-DD format
+  room_id: number;
+  number_of_guests: number;
+  special_requests?: string;
+  notes?: string;
+  check_in_time?: string;    // HH:MM format
+  check_out_time?: string;   // HH:MM format
+  payment_method?: string;
+}
+
+interface BookingResponse {
+  status: string;
+  data: {
+    id: number;
+    booking_number: string;
+    start_date: string;
+    end_date: string;
+    room_id: number;
+    status: string;
+    total_price: number;
+    number_of_guests: number;
+    room: {
+      id: number;
+      title: string;
+      room_number: string;
+    };
+    homestay: {
+      id: number;
+      title: string;
+    };
+    guest?: {
+      name: string;
+      email: string;
+      phone: string;
+    };
+  };
+}
+
+// Validate booking data
+const validateGuestBookingData = (data: GuestBookingData): string[] => {
+  const errors: string[] = [];
+  
+  if (!data.start_date) errors.push('Start date is required');
+  if (!data.end_date) errors.push('End date is required');
+  if (!data.room_id) errors.push('Room ID is required');
+  if (!data.number_of_guests || data.number_of_guests <= 0) errors.push('Number of guests must be greater than 0');
+  if (!data.guest_name?.trim()) errors.push('Guest name is required');
+  if (!data.guest_email?.trim()) errors.push('Guest email is required');
+  if (!data.guest_phone?.trim()) errors.push('Guest phone is required');
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (data.guest_email && !emailRegex.test(data.guest_email)) {
+    errors.push('Valid email address is required');
+  }
+  
+  // Validate dates
+  const startDate = new Date(data.start_date);
+  const endDate = new Date(data.end_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if (startDate < today) {
+    errors.push('Start date cannot be in the past');
+  }
+  
+  if (endDate <= startDate) {
+    errors.push('End date must be after start date');
+  }
+  
+  return errors;
+};
+
+// Create guest booking (NO AUTHENTICATION REQUIRED)
+export const createGuestBooking = async (bookingData: GuestBookingData): Promise<BookingResponse> => {
+  console.log('[BOOKING] Creating guest booking (NO AUTH) with data:', bookingData);
+  
+  // Validate data
+  const validationErrors = validateGuestBookingData(bookingData);
+  if (validationErrors.length > 0) {
+    console.error('[BOOKING] Validation failed:', validationErrors);
+    throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+  }
+  
+  try {
+    // Clean and format the data
+    const cleanData = {
+      start_date: bookingData.start_date,
+      end_date: bookingData.end_date,
+      room_id: Number(bookingData.room_id),
+      number_of_guests: Number(bookingData.number_of_guests),
+      guest_name: bookingData.guest_name.trim(),
+      guest_email: bookingData.guest_email.trim().toLowerCase(),
+      guest_phone: bookingData.guest_phone.trim(),
+      special_requests: bookingData.special_requests?.trim() || '',
+      notes: bookingData.notes?.trim() || '',
+      check_in_time: bookingData.check_in_time || '14:00',
+      check_out_time: bookingData.check_out_time || '11:00',
+      payment_method: bookingData.payment_method || 'cash'
+    };
+    
+    console.log('[BOOKING] Sending cleaned data to API (NO TOKEN):', cleanData);
+    
+    // Make the API call WITHOUT any authorization headers
+    const response = await apiClient.post<BookingResponse>('/bookings/guest', cleanData);
+    
+    console.log('[BOOKING] Guest booking created successfully:', response.data);
+    return response.data;
+    
+  } catch (error: any) {
+    console.error('[BOOKING] Guest booking failed:', error);
+    console.error('[BOOKING] Error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+      url: error.config?.url
+    });
+    
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    } else if (error.response?.status === 404) {
+      throw new Error('Booking service not available. Please check the endpoint URL.');
+    } else if (error.response?.status === 400) {
+      throw new Error(error.response?.data?.message || 'Invalid booking data. Please check your information.');
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication error. This should not happen for guest bookings - check your API configuration.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    } else if (error.code === 'ECONNREFUSED') {
+      throw new Error('Cannot connect to booking service. Please check your internet connection.');
+    } else {
+      throw new Error('Failed to create booking. Please try again.');
+    }
+  }
+};
+
+// Create authenticated user booking (REQUIRES TOKEN)
+export const createAuthenticatedBooking = async (
+  bookingData: AuthenticatedBookingData,
+  authToken: string
+): Promise<BookingResponse> => {
+  console.log('[BOOKING] Creating authenticated booking with data:', bookingData);
+  
+  if (!authToken) {
+    throw new Error('Authentication token is required for authenticated bookings');
+  }
+  
+  try {
+    const response = await apiClient.post<BookingResponse>(
+      '/bookings', // Note: endpoint is /bookings (with 's')
+      bookingData,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    );
+    
+    console.log('[BOOKING] Authenticated booking created successfully:', response.data);
+    return response.data;
+    
+  } catch (error: any) {
+    console.error('[BOOKING] Authenticated booking failed:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication required. Please log in.');
+    } else if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    } else {
+      throw new Error('Failed to create booking. Please try again.');
+    }
+  }
+};
+
+// Check room availability (NO AUTH REQUIRED)
+export const checkRoomAvailability = async (
+  roomId: number,
+  startDate: string,
+  endDate: string
+): Promise<{ is_available: boolean; room_status: string; has_bookings: boolean }> => {
+  try {
+    console.log(`[BOOKING] Checking availability for room ${roomId} from ${startDate} to ${endDate}`);
+    
+    const response = await apiClient.get(
+      `/bookings/room/${roomId}/availability`,
+      {
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+        },
+      }
+    );
+    
+    console.log('[BOOKING] Room availability response:', response.data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[BOOKING] Room availability check failed:', error);
+    throw new Error('Failed to check room availability');
+  }
+};
+
+// Get booking by ID (MAY REQUIRE AUTH)
+export const getBookingById = async (
+  bookingId: number,
+  authToken?: string
+): Promise<any> => {
+  try {
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    
+    const response = await apiClient.get(`/bookings/${bookingId}`, { headers });
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[BOOKING] Get booking by ID failed:', error);
+    throw new Error('Failed to get booking details');
+  }
+};
+
+// Update booking status (REQUIRES AUTH - admin only)
+export const updateBookingStatus = async (
+  bookingId: number,
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed',
+  authToken: string,
+  cancellationReason?: string
+): Promise<any> => {
+  if (!authToken) {
+    throw new Error('Authentication token is required for updating booking status');
+  }
+  
+  try {
+    const response = await apiClient.put(
+      `/bookings/${bookingId}/status`,
+      {
+        status,
+        cancellation_reason: cancellationReason,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    );
+    
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[BOOKING] Update booking status failed:', error);
+    throw new Error('Failed to update booking status');
+  }
+};
+
+// Get user's bookings (REQUIRES AUTH)
+export const getUserBookings = async (authToken: string): Promise<any[]> => {
+  if (!authToken) {
+    throw new Error('Authentication token is required for getting user bookings');
+  }
+  
+  try {
+    const response = await apiClient.get('/bookings/my', {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[BOOKING] Get user bookings failed:', error);
+    throw new Error('Failed to get user bookings');
+  }
+};
+
+// Export the API client for other uses
+export { apiClient };
+
+// Helper function to format dates for API
+export const formatDateForAPI = (date: Date): string => {
+  return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
+};
+
+// Helper function to format time for API
+export const formatTimeForAPI = (hours: number, minutes: number): string => {
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+// Environment configuration helper
+export const getApiConfig = () => {
+  return {
+    baseURL: API_BASE_URL,
+    isDevelopment: import.meta.env.DEV,
+    isProduction: import.meta.env.PROD,
+    mode: import.meta.env.MODE,
+  };
+};
+
+// Debug helper to test connectivity
+export const testApiConnection = async (): Promise<boolean> => {
+  try {
+    console.log('[BOOKING] Testing API connection to:', API_BASE_URL);
+    // You can add a simple health check endpoint here if available
+    return true;
+  } catch (error) {
+    console.error('[BOOKING] API connection test failed:', error);
+    return false;
+  }
+};
+
+// Usage example:
+/*
+// For guest booking (NO TOKEN NEEDED):
+const guestBookingData = {
+  start_date: '2024-01-15',
+  end_date: '2024-01-20',
+  room_id: 5,
+  number_of_guests: 2,
+  guest_name: 'John Doe',
+  guest_email: 'john.doe@example.com',
+  guest_phone: '+1234567890',
+  special_requests: 'Need extra pillows',
+  notes: 'Anniversary trip',
+  check_in_time: '14:00',
+  check_out_time: '11:00',
+  payment_method: 'credit_card'
+};
+
+try {
+  const result = await createGuestBooking(guestBookingData);
+  console.log('Guest booking created:', result);
+} catch (error) {
+  console.error('Guest booking failed:', error.message);
+}
+
+// For authenticated booking (TOKEN REQUIRED):
+const authBookingData = {
+  start_date: '2024-01-15',
+  end_date: '2024-01-20',
+  room_id: 5,
+  number_of_guests: 2,
+  special_requests: 'Need extra pillows'
+};
+
+try {
+  const token = 'your-auth-token-here';
+  const result = await createAuthenticatedBooking(authBookingData, token);
+  console.log('Authenticated booking created:', result);
+} catch (error) {
+  console.error('Authenticated booking failed:', error.message);
+}
+*/
+
+/*
+=== IMPORTANT NOTES ===
+
+1. Guest bookings DO NOT require authentication tokens
+2. The createGuestBooking function explicitly does NOT send any Authorization headers
+3. If you're getting "No token provided" errors, check:
+   - Your backend routes are correctly set up
+   - The /bookings/guest endpoint is not protected by authentication middleware
+   - Your axios interceptors are not automatically adding auth headers
+
+4. Environment variables:
+   - .env.development: VITE_API_BASE_URL=http://localhost:5000/api
+   - .env.production: VITE_API_BASE_URL=https://your-production-domain.com/api
+*/ 

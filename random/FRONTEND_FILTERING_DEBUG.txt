@@ -1,0 +1,153 @@
+🚨 FRONTEND FILTERING BUG IDENTIFIED - URGENT FIX NEEDED
+========================================================
+
+PROBLEM IDENTIFIED:
+==================
+❌ Backend returns 8 bookings successfully
+❌ Frontend filtering removes ALL 8 bookings  
+❌ Result: Dashboard shows 0 bookings
+
+EXACT ISSUE:
+============
+The homestay ID filtering logic in the frontend is incorrectly filtering out valid bookings.
+
+Console Log Analysis:
+- ✅ "Raw data count: 8" → Backend working perfectly
+- ✅ "Homestays after owner filter: 1" → Homestay filtering works  
+- ❌ "Bookings after homestay filter: 0 (was 8)" → ALL bookings removed!
+
+ROOT CAUSE:
+===========
+The booking data structure includes homestay_id: 49, but the frontend filtering logic is not matching this correctly with the user's homestay IDs.
+
+BACKEND DATA STRUCTURE (CONFIRMED WORKING):
+==========================================
+Each booking returns:
+{
+  "id": 22,
+  "homestay_id": 49,  ← This field exists
+  "total_price": 450000,
+  "guest_name": "UserName",
+  "status": "confirmed",
+  "homestay": {
+    "id": 49,         ← This also exists  
+    "title": "Paradiso Homestay"
+  }
+}
+
+FRONTEND DEBUGGING STEPS:
+========================
+
+1. 🔍 CHECK HOMESTAY FILTERING LOGIC:
+   Look for code around line 335 in Dashboard.tsx that filters bookings by homestay ID.
+   
+2. 🔍 VERIFY FIELD NAMES:
+   The filtering might be looking for:
+   - booking.homestay.id (✅ exists)
+   - booking.homestay_id (✅ exists) 
+   - Some other field name (❌ check this)
+
+3. 🔍 CHECK DATA TYPES:
+   - Homestay ID in booking: 49 (number)
+   - User's homestay ID: might be "49" (string)
+   - Solution: Use === vs == or parseInt()
+
+4. 🔍 CONSOLE LOG THE FILTERING:
+   Add these debug logs in Dashboard.tsx around line 335:
+
+```javascript
+console.log('🔍 DEBUGGING HOMESTAY FILTER:');
+console.log('User homestay IDs:', userHomestayIds);
+console.log('Sample booking:', bookings[0]);
+console.log('Sample booking homestay_id:', bookings[0]?.homestay_id);
+console.log('Sample booking homestay.id:', bookings[0]?.homestay?.id);
+
+// Test the filter condition
+bookings.forEach((booking, index) => {
+  const matches = userHomestayIds.includes(booking.homestay_id);
+  const matchesNested = userHomestayIds.includes(booking.homestay?.id);
+  console.log(`Booking ${index}: homestay_id=${booking.homestay_id}, matches=${matches}, nested_matches=${matchesNested}`);
+});
+```
+
+LIKELY FIXES:
+=============
+
+Option 1 - String/Number Conversion:
+```javascript
+// If homestay IDs are strings but booking IDs are numbers
+const filteredBookings = bookings.filter(booking => 
+  userHomestayIds.includes(String(booking.homestay_id)) ||
+  userHomestayIds.includes(booking.homestay_id)
+);
+```
+
+Option 2 - Check Both Field Locations:
+```javascript
+const filteredBookings = bookings.filter(booking => 
+  userHomestayIds.includes(booking.homestay_id) ||
+  userHomestayIds.includes(booking.homestay?.id)
+);
+```
+
+Option 3 - Debug the Actual Filter Logic:
+```javascript
+console.log('Before filter - bookings count:', bookings.length);
+console.log('User homestay IDs:', userHomestayIds);
+
+const filteredBookings = bookings.filter(booking => {
+  const homestayId = booking.homestay_id || booking.homestay?.id;
+  const matches = userHomestayIds.includes(homestayId);
+  
+  if (!matches) {
+    console.log(`❌ Booking ${booking.id} filtered out:`, {
+      bookingHomestayId: homestayId,
+      userHomestayIds: userHomestayIds,
+      includes: userHomestayIds.includes(homestayId)
+    });
+  }
+  
+  return matches;
+});
+
+console.log('After filter - bookings count:', filteredBookings.length);
+```
+
+IMMEDIATE TEST:
+==============
+To quickly test if this fixes the issue, try temporarily commenting out the homestay filtering logic:
+
+```javascript
+// TEMPORARY TEST - Comment out the homestay filter
+// const filteredBookings = bookings.filter(booking => 
+//   userHomestayIds.includes(booking.homestay_id)
+// );
+
+// Use all bookings temporarily  
+const filteredBookings = bookings; // REMOVE THIS AFTER FIXING
+```
+
+If this shows the 8 bookings, then the filtering logic is definitely the issue.
+
+EXPECTED RESULT AFTER FIX:
+=========================
+✅ Dashboard should show:
+- Revenue: ~8,400,000 IDR
+- Bookings This Month: 2-3 bookings  
+- Recent Bookings Table: 8 total bookings
+- Proper booking status breakdown
+
+BACKEND CONFIRMATION:
+====================
+✅ Backend is working 100% correctly
+✅ API returns 8 bookings with proper structure  
+✅ All homestay_id fields are present
+✅ No backend changes needed
+
+The issue is purely in the frontend filtering logic around Dashboard.tsx line 335.
+
+==================================================
+SUMMARY: Fix the homestay filtering logic in Dashboard.tsx
+URGENCY: High - blocking all dashboard functionality  
+IMPACT: Once fixed, dashboard will immediately show correct data
+================================================== 

@@ -180,4 +180,94 @@ export const getPaymentsByUser = async (req: Request, res: Response, next: NextF
   } catch (error) {
     next(error);
   }
+};
+
+// Get all payments (admin access)
+export const getAllPayments = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Check if user is admin
+    const userRole = req.user?.role;
+    const userType = req.user?.user_type;
+    
+    // Only super_admin can access all payments
+    if (userType !== 'admin' || userRole !== 'super_admin') {
+      return next(new AppError('Unauthorized. Super admin access required.', 403));
+    }
+
+    // Parse query parameters
+    const status = req.query.status as string | undefined;
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const page = parseInt(req.query.page as string || '1');
+    const limit = parseInt(req.query.limit as string || '20');
+    const offset = (page - 1) * limit;
+
+    // Build the query dynamically based on filters
+    let query = `
+      SELECT p.*, 
+             b.booking_number, b.start_date, b.end_date,
+             hr.title as room_title,
+             h.id as homestay_id, h.title as homestay_title
+      FROM "payments" p
+      JOIN "booking" b ON p.booking_id = b.id
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+    `;
+    
+    const queryParams: any[] = [];
+    let whereConditions: string[] = [];
+    
+    // Add filters
+    if (status) {
+      whereConditions.push(`p.payment_status = $${queryParams.length + 1}`);
+      queryParams.push(status);
+    }
+    
+    if (startDate) {
+      whereConditions.push(`p.payment_date >= $${queryParams.length + 1}`);
+      queryParams.push(startDate);
+    }
+    
+    if (endDate) {
+      whereConditions.push(`p.payment_date <= $${queryParams.length + 1}`);
+      queryParams.push(endDate);
+    }
+    
+    // Add WHERE clause if there are conditions
+    if (whereConditions.length > 0) {
+      query += ' WHERE ' + whereConditions.join(' AND ');
+    }
+    
+    // Add ORDER BY and pagination
+    query += ` ORDER BY p.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+    
+    // Execute query
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM "payments" p
+      JOIN "booking" b ON p.booking_id = b.id
+      JOIN "homestayRoom" hr ON b.room_id = hr.id
+      JOIN "homestay" h ON hr.homestay_id = h.id
+      ${whereConditions.length > 0 ? ' WHERE ' + whereConditions.join(' AND ') : ''}
+    `;
+    
+    const { rows: countResult } = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2));
+    const total = parseInt(countResult[0].total);
+    
+    res.json({
+      status: 'success',
+      data: rows,
+      meta: {
+        total,
+        page,
+        limit
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 }; 

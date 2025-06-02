@@ -7,6 +7,7 @@ import paymentRoutes from './routes/payment.routes';
 import { landingUserRoutes } from './routes/landing_user.routes';
 import { bookingRoutes } from './routes/booking.routes';
 import roomRoutes from './routes/room.routes';
+import { reviewRoutes } from './routes/review.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { testConnection } from './config/database';
 
@@ -35,7 +36,8 @@ app.get('/', (req, res) => {
       payments: '/api/payments',
       users: '/api/users',
       bookings: '/api/bookings',
-      rooms: '/api/rooms'
+      rooms: '/api/rooms',
+      reviews: '/api/reviews'
     }
   });
 });
@@ -47,6 +49,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/users', landingUserRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Error handling
 app.use(errorHandler);
