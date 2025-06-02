@@ -77,10 +77,10 @@ class OAuthService {
         id: data.id!,
         email: data.email!,
         name: data.name!,
-        picture: data.picture,
-        given_name: data.given_name,
-        family_name: data.family_name,
-        verified_email: data.verified_email
+        picture: data.picture || undefined,
+        given_name: data.given_name || undefined,
+        family_name: data.family_name || undefined,
+        verified_email: data.verified_email || undefined
       };
 
       // Determine user type and handle accordingly
@@ -317,10 +317,10 @@ class OAuthService {
         id: data.id!,
         email: data.email!,
         name: data.name!,
-        picture: data.picture,
-        given_name: data.given_name,
-        family_name: data.family_name,
-        verified_email: data.verified_email
+        picture: data.picture || undefined,
+        given_name: data.given_name || undefined,
+        family_name: data.family_name || undefined,
+        verified_email: data.verified_email || undefined
       };
 
       const client = await pool.connect();
