@@ -30,33 +30,56 @@ export const handleGoogleCallback = async (
   next: NextFunction
 ) => {
   try {
+    console.log('=== OAUTH CALLBACK DEBUG ===');
+    console.log('Query params:', req.query);
+    console.log('Headers:', req.headers);
+    
     const { code, state, error: oauthError } = req.query;
 
     // Handle OAuth errors
     if (oauthError) {
+      console.log('OAuth error from Google:', oauthError);
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      return res.redirect(`${frontendUrl}/login?error=oauth_cancelled`);
+      
+      // Map OAuth errors to specific error codes
+      let errorCode = 'oauth_error';
+      if (oauthError === 'access_denied') {
+        errorCode = 'access_denied';
+      } else if (oauthError === 'invalid_request') {
+        errorCode = 'invalid_request';
+      } else {
+        errorCode = 'oauth_cancelled';
+      }
+      
+      const redirectUrl = `${frontendUrl}/login?error=${errorCode}`;
+      console.log('Redirecting to:', redirectUrl);
+      return res.redirect(redirectUrl);
     }
 
     if (!code || !state) {
+      console.log('Missing code or state - Code:', !!code, 'State:', !!state);
       return next(new AppError('Missing authorization code or state', 400));
     }
 
+    console.log('Processing OAuth callback with code and state...');
+    
     // Process the OAuth callback
     const result = await oauthService.handleGoogleCallback(
       code as string, 
       state as string
     );
 
+    console.log('OAuth processing successful:', {
+      userType: result.userType,
+      isNewUser: result.isNewUser,
+      hasToken: !!result.token
+    });
+
     // Determine redirect URL based on user type
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    let redirectUrl = frontendUrl;
-
-    if (result.userType === 'admin_user') {
-      redirectUrl = `${frontendUrl}/admin/dashboard`;
-    } else {
-      redirectUrl = `${frontendUrl}/dashboard`;
-    }
+    
+    // Use dedicated OAuth callback route for better handling
+    const redirectUrl = `${frontendUrl}/auth/callback`;
 
     // Add success parameters
     const params = new URLSearchParams({
@@ -65,14 +88,24 @@ export const handleGoogleCallback = async (
       is_new: result.isNewUser.toString()
     });
 
-    res.redirect(`${redirectUrl}?${params.toString()}`);
+    const finalRedirectUrl = `${redirectUrl}?${params.toString()}`;
+    console.log('SUCCESS - Redirecting to:', finalRedirectUrl);
+    console.log('=== END OAUTH CALLBACK DEBUG ===');
+    
+    res.redirect(finalRedirectUrl);
   } catch (error) {
+    console.log('=== OAUTH CALLBACK ERROR ===');
     console.error('OAuth callback error:', error);
     
     // Redirect to frontend with error
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const errorType = error instanceof AppError ? 'oauth_error' : 'oauth_failed';
-    res.redirect(`${frontendUrl}/login?error=${errorType}`);
+    const errorRedirectUrl = `${frontendUrl}/login?error=${errorType}`;
+    
+    console.log('ERROR - Redirecting to:', errorRedirectUrl);
+    console.log('=== END OAUTH CALLBACK ERROR ===');
+    
+    res.redirect(errorRedirectUrl);
   }
 };
 

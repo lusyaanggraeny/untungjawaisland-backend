@@ -1,4 +1,4 @@
-# Google OAuth Setup Guide
+# Google OAuth Setup Guide - Updated for 2024/2025
 
 ## Step 1: Google Cloud Console Setup
 
@@ -6,33 +6,46 @@
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Click "Create Project" or select an existing project
 3. Give your project a name (e.g., "Untungjawa Homestay")
+4. Click "Create"
 
-### 1.2 Enable Google+ API
+### 1.2 Enable Google APIs (No longer requires Google+ API)
 1. Navigate to "APIs & Services" > "Library"
-2. Search for "Google+ API" and enable it
-3. Also enable "Google People API" for profile information
+2. Search for and enable these APIs:
+   - **Google People API** (for profile information)
+   - **Google Calendar API** (if using calendar features)
+   - **Google Drive API** (if using drive features)
+3. **Note**: Google+ API is deprecated and no longer needed
 
 ### 1.3 Configure OAuth Consent Screen
 1. Go to "APIs & Services" > "OAuth consent screen"
-2. Choose "External" for public app
+2. Choose "External" for public app (or "Internal" if using Google Workspace)
 3. Fill in required information:
-   - App name: "Untungjawa Homestay"
-   - User support email: your email
-   - Developer contact: your email
-4. Add scopes: `email`, `profile`, `openid`
-5. Add test users during development
+   - **App name**: "Untungjawa Homestay"
+   - **User support email**: your email
+   - **App logo**: (optional but recommended)
+   - **App domain**: your website domain
+   - **Developer contact**: your email
+4. **Scopes section**: Add these scopes:
+   - `../auth/userinfo.email`
+   - `../auth/userinfo.profile` 
+   - `openid`
+5. **Test users**: Add your email and any other test users during development
+6. Save and continue through all steps
 
 ### 1.4 Create OAuth Credentials
 1. Go to "APIs & Services" > "Credentials"
 2. Click "Create Credentials" > "OAuth client ID"
 3. Choose "Web application"
 4. Configure:
+   - **Name**: "Untungjawa Homestay Web Client"
    - **Authorized JavaScript origins:**
-     - `http://localhost:3000` (frontend)
-     - `https://yourdomain.com` (production)
+     - `http://localhost:3000` (frontend development)
+     - `https://yourdomain.com` (production frontend)
    - **Authorized redirect URIs:**
-     - `http://localhost:5000/auth/google/callback` (development)
-     - `https://api.yourdomain.com/auth/google/callback` (production)
+     - `http://localhost:5000/auth/google/callback` (development backend)
+     - `https://api.yourdomain.com/auth/google/callback` (production backend)
+5. Click "Create"
+6. **Important**: Save your Client ID and Client Secret immediately - the secret is only shown once!
 
 ## Step 2: Environment Variables
 
@@ -110,6 +123,20 @@ const GoogleSignInButton = () => {
 - Store minimal user data from Google
 - Provide clear privacy policy
 
+## Step 6: Important Updates for 2024/2025
+
+### What's Changed:
+1. **Google+ API Deprecated**: No longer available or needed
+2. **New Google Auth Platform**: Modern interface in Google Cloud Console
+3. **Enhanced Security**: Better client secret handling and rotation
+4. **Updated Scopes**: Use newer OpenID Connect scopes
+
+### Modern Best Practices:
+1. **Client Secret Security**: Store secrets in secure managers (Google Secret Manager, etc.)
+2. **Regular Rotation**: Rotate client secrets periodically
+3. **Minimal Scopes**: Only request what you actually need
+4. **HTTPS Required**: All production redirect URIs must use HTTPS
+
 ## Testing Checklist
 
 - [ ] Google OAuth consent screen works
@@ -118,4 +145,6 @@ const GoogleSignInButton = () => {
 - [ ] Account linking functionality
 - [ ] Error handling for OAuth failures
 - [ ] Token refresh works properly
-- [ ] User can disconnect Google account 
+- [ ] User can disconnect Google account
+- [ ] All redirect URIs are properly configured
+- [ ] Client secret is securely stored 
