@@ -5,6 +5,12 @@ export enum BookingStatus {
   COMPLETED = 'completed'
 }
 
+export enum HousekeepingStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed'
+}
+
 export interface Booking {
   id: number;
   start_date: Date;
@@ -23,6 +29,10 @@ export interface Booking {
   special_requests: string | null;
   cancellation_reason: string | null;
   cancelled_at: Date | null;
+  actual_check_in_time: Date | null;
+  actual_check_out_time: Date | null;
+  housekeeping_completed_at: Date | null;
+  housekeeping_status: HousekeepingStatus;
   created_at: Date;
   updated_at: Date;
 }
@@ -42,6 +52,28 @@ export interface BookingCreateInput {
 export interface BookingStatusUpdateInput {
   status: BookingStatus;
   cancellation_reason?: string;
+}
+
+export interface SameDayAvailabilityData {
+  is_available: boolean;
+  early_checkout: boolean;
+  earliest_booking_time: string;
+  can_book_today: boolean;
+  message: string;
+  checkout_time?: string;
+  housekeeping_status?: HousekeepingStatus;
+  housekeeping_complete_time?: string;
+  current_booking?: {
+    id: number;
+    booking_number: string;
+    end_date: Date;
+    status: BookingStatus;
+  };
+  previous_booking?: {
+    id: number;
+    booking_number: string;
+    checkout_time: string;
+  };
 }
 
 export interface BookingWithRelations extends Booking {

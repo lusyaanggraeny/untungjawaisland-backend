@@ -14,6 +14,7 @@ import {
   sendBookingStatusUpdate
 } from '../services/email.service';
 import { AdminJwtPayload, UserJwtPayload, AdminUserRole, UserRole } from '../types/user.types';
+import moment from 'moment';
 
 // Generate a unique booking number
 const generateBookingNumber = (): string => {
@@ -80,20 +81,122 @@ export const createBooking = async (
     const room = roomRows[0];
 
     // Check if room is available for the requested dates
-    const { rows: existingBookings } = await client.query(
-      `SELECT * FROM "booking" 
-       WHERE room_id = $1 
-       AND status != $2
-       AND (
-         (start_date <= $3 AND end_date >= $3) OR
-         (start_date <= $4 AND end_date >= $4) OR
-         (start_date >= $3 AND end_date <= $4)
-       )`,
-      [room_id, BookingStatus.CANCELLED, start_date, end_date]
-    );
+    // Enhanced logic to handle same-day bookings with early checkout
+    try {
+      // Use string comparison for dates to avoid timezone issues
+      const requestStartDate = start_date; // Already in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0]; // Get today in YYYY-MM-DD format
+      
+      // Check if booking is for today's date
+      const isBookingForToday = requestStartDate === today;
+      
+      console.log(`[BOOKING] Request date: ${requestStartDate}, Today: ${today}`);
+      console.log(`[BOOKING] Is booking for today: ${isBookingForToday}`);
+      console.log(`[BOOKING] Checking availability for room ${room_id}, dates: ${start_date} to ${end_date}`);
 
-    if (existingBookings.length > 0) {
-      return next(new AppError('Room is not available for the selected dates', 400));
+      if (isBookingForToday) {
+        // Use same availability logic as /same-day-availability endpoint
+        console.log(`[BOOKING] Using same-day availability logic...`);
+        
+        // Check for active bookings (confirmed/pending) today
+        const { rows: activeBookings } = await client.query(
+          `SELECT * FROM "booking" 
+           WHERE room_id = $1 
+             AND status IN ($2, $3)
+             AND start_date <= $4 
+             AND end_date >= $4`,
+          [room_id, BookingStatus.CONFIRMED, BookingStatus.PENDING, start_date]
+        );
+
+        if (activeBookings.length > 0) {
+          console.log(`[BOOKING] ❌ Room has active booking for today`);
+          return next(new AppError('Room is not available for the selected dates', 400));
+        }
+
+        // Check for completed bookings today (early checkout scenario)
+        const { rows: completedToday } = await client.query(
+          `SELECT * FROM "booking" 
+           WHERE room_id = $1 
+             AND status = $2
+             AND start_date <= $3 
+             AND end_date >= $3
+             AND updated_at::date = $3::date
+           ORDER BY updated_at DESC`,
+          [room_id, BookingStatus.COMPLETED, start_date]
+        );
+
+        if (completedToday.length > 0) {
+          const latestCheckout = completedToday[0];
+          const checkoutTime = new Date(latestCheckout.updated_at);
+          const housekeepingCompleteTime = new Date(checkoutTime.getTime() + (2 * 60 * 60 * 1000));
+          const now = new Date();
+          
+          console.log(`[BOOKING] Early checkout detected - checkout: ${checkoutTime.toISOString()}`);
+          console.log(`[BOOKING] Housekeeping complete time: ${housekeepingCompleteTime.toISOString()}`);
+          
+          if (now >= housekeepingCompleteTime) {
+            console.log(`[BOOKING] ✅ Same-day booking allowed - housekeeping completed`);
+          } else {
+            const minutesLeft = Math.ceil((housekeepingCompleteTime.getTime() - now.getTime()) / (1000 * 60));
+            console.log(`[BOOKING] ❌ Same-day booking denied - housekeeping in progress (${minutesLeft} minutes left)`);
+            return next(new AppError(`Room will be available after housekeeping completion in ${minutesLeft} minutes`, 400));
+          }
+        } else {
+          console.log(`[BOOKING] ✅ Same-day booking allowed - no bookings today`);
+        }
+      } else {
+        // Use normal availability check for future dates with moment.js
+        console.log(`[BOOKING] Using normal availability logic for future date...`);
+        
+        const requestStart = moment(start_date).startOf('day');
+        const requestEnd = moment(end_date).startOf('day');
+        
+        // Get all active bookings for this room
+        const { rows: allBookings } = await client.query(
+          `SELECT id, start_date, end_date, status, booking_number 
+           FROM "booking" 
+           WHERE room_id = $1 
+           AND status IN ($2, $3)`,
+          [room_id, BookingStatus.CONFIRMED, BookingStatus.PENDING]
+        );
+
+        // Check for conflicts using same logic as availability endpoint
+        let hasConflict = false;
+        let conflictingBooking = null;
+        
+        for (const booking of allBookings) {
+          const bookingStart = moment(booking.start_date).startOf('day');
+          const bookingEnd = moment(booking.end_date).startOf('day');
+          
+          // FRONTEND TEAM'S FIX: Checkout date is EXCLUSIVE
+          const conflicts = requestStart.isBefore(bookingEnd) && requestEnd.isAfter(bookingStart);
+          
+          console.log(`[BOOKING] Checking booking ${booking.id}:`, {
+            bookingDates: `${bookingStart.format('YYYY-MM-DD')} to ${bookingEnd.format('YYYY-MM-DD')}`,
+            requestDates: `${requestStart.format('YYYY-MM-DD')} to ${requestEnd.format('YYYY-MM-DD')}`,
+            conflicts: conflicts
+          });
+          
+          if (conflicts) {
+            hasConflict = true;
+            conflictingBooking = booking;
+            break;
+          }
+        }
+
+        if (hasConflict) {
+          console.log(`[BOOKING] ❌ Room not available for dates ${start_date} to ${end_date}`);
+          console.log(`[BOOKING] Conflicting with booking ${conflictingBooking.id}`);
+          return next(new AppError('Room is not available for the selected dates', 400));
+        }
+        
+        console.log(`[BOOKING] ✅ Room available for dates ${start_date} to ${end_date}`);
+      }
+
+      // Availability logic complete - no additional checks needed
+    } catch (availabilityError) {
+      console.error(`[BOOKING] Error during availability check:`, availabilityError);
+      throw availabilityError; // Re-throw to be caught by main try-catch
     }
 
     // Calculate total price
@@ -463,6 +566,9 @@ export const updateBookingStatus = async (
       return next(new AppError('Regular users can only cancel bookings', 403));
     }
 
+    // Store the old status for comparison
+    const oldStatus = booking.status;
+
     // Update the booking status
     const updateResult = await client.query(
       `UPDATE "booking" 
@@ -479,6 +585,38 @@ export const updateBookingStatus = async (
         id
       ]
     );
+
+    // Update room status based on booking status change
+    if (status === BookingStatus.COMPLETED && oldStatus !== BookingStatus.COMPLETED) {
+      // Booking completed - room becomes available (early checkout scenario)
+      await client.query(
+        `UPDATE "homestayRoom" 
+         SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $1`,
+        [booking.room_id]
+      );
+      console.log(`[BOOKING] Room ${booking.room_id} marked as available after booking ${id} completion`);
+      
+    } else if (status === BookingStatus.CANCELLED && oldStatus !== BookingStatus.CANCELLED) {
+      // Booking cancelled - room becomes available
+      await client.query(
+        `UPDATE "homestayRoom" 
+         SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $1`,
+        [booking.room_id]
+      );
+      console.log(`[BOOKING] Room ${booking.room_id} marked as available after booking ${id} cancellation`);
+      
+    } else if (status === BookingStatus.CONFIRMED && oldStatus !== BookingStatus.CONFIRMED) {
+      // Booking confirmed - room becomes occupied
+      await client.query(
+        `UPDATE "homestayRoom" 
+         SET status = 'occupied', updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $1`,
+        [booking.room_id]
+      );
+      console.log(`[BOOKING] Room ${booking.room_id} marked as occupied after booking ${id} confirmation`);
+    }
 
     await client.query('COMMIT');
 
@@ -605,21 +743,118 @@ export const createGuestBooking = async (
     const room = roomRows[0];
 
     // Check if room is available for the requested dates
-    const { rows: existingBookings } = await client.query(
-      `SELECT * FROM "booking" 
-       WHERE room_id = $1 
-       AND status != $2
-       AND (
-         (start_date <= $3 AND end_date >= $3) OR
-         (start_date <= $4 AND end_date >= $4) OR
-         (start_date >= $3 AND end_date <= $4)
-       )`,
-      [room_id, BookingStatus.CANCELLED, start_date, end_date]
-    );
+    // Enhanced logic to handle same-day bookings with early checkout
+    // Use string comparison for dates to avoid timezone issues
+    const requestStartDate = start_date; // Already in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0]; // Get today in YYYY-MM-DD format
+    
+    // Check if booking is for today's date
+    const isBookingForToday = requestStartDate === today;
 
-    if (existingBookings.length > 0) {
-      return next(new AppError('Room is not available for the selected dates', 400));
+    console.log(`[GUEST-BOOKING] Request date: ${requestStartDate}, Today: ${today}`);
+    console.log(`[GUEST-BOOKING] Is booking for today: ${isBookingForToday}`);
+    console.log(`[GUEST-BOOKING] Checking availability for room ${room_id}, dates: ${start_date} to ${end_date}`);
+
+    if (isBookingForToday) {
+      // Use same availability logic as /same-day-availability endpoint
+      console.log(`[GUEST-BOOKING] Using same-day availability logic...`);
+      
+      // Check for active bookings (confirmed/pending) today
+      const { rows: activeBookings } = await client.query(
+        `SELECT * FROM "booking" 
+         WHERE room_id = $1 
+           AND status IN ($2, $3)
+           AND start_date <= $4 
+           AND end_date >= $4`,
+        [room_id, BookingStatus.CONFIRMED, BookingStatus.PENDING, start_date]
+      );
+
+      if (activeBookings.length > 0) {
+        console.log(`[GUEST-BOOKING] ❌ Room has active booking for today`);
+        return next(new AppError('Room is not available for the selected dates', 400));
+      }
+
+      // Check for completed bookings today (early checkout scenario)
+      const { rows: completedToday } = await client.query(
+        `SELECT * FROM "booking" 
+         WHERE room_id = $1 
+           AND status = $2
+           AND start_date <= $3 
+           AND end_date >= $3
+           AND updated_at::date = $3::date
+         ORDER BY updated_at DESC`,
+        [room_id, BookingStatus.COMPLETED, start_date]
+      );
+
+      if (completedToday.length > 0) {
+        const latestCheckout = completedToday[0];
+        const checkoutTime = new Date(latestCheckout.updated_at);
+        const housekeepingCompleteTime = new Date(checkoutTime.getTime() + (2 * 60 * 60 * 1000));
+        const now = new Date();
+        
+        console.log(`[GUEST-BOOKING] Early checkout detected - checkout: ${checkoutTime.toISOString()}`);
+        console.log(`[GUEST-BOOKING] Housekeeping complete time: ${housekeepingCompleteTime.toISOString()}`);
+        
+        if (now >= housekeepingCompleteTime) {
+          console.log(`[GUEST-BOOKING] ✅ Same-day booking allowed - housekeeping completed`);
+        } else {
+          const minutesLeft = Math.ceil((housekeepingCompleteTime.getTime() - now.getTime()) / (1000 * 60));
+          console.log(`[GUEST-BOOKING] ❌ Same-day booking denied - housekeeping in progress (${minutesLeft} minutes left)`);
+          return next(new AppError(`Room will be available after housekeeping completion in ${minutesLeft} minutes`, 400));
+        }
+      } else {
+        console.log(`[GUEST-BOOKING] ✅ Same-day booking allowed - no bookings today`);
+      }
+    } else {
+      // Use normal availability check for future dates with moment.js
+      console.log(`[GUEST-BOOKING] Using normal availability logic for future date...`);
+      
+      const requestStart = moment(start_date).startOf('day');
+      const requestEnd = moment(end_date).startOf('day');
+      
+      // Get all active bookings for this room
+      const { rows: allBookings } = await client.query(
+        `SELECT id, start_date, end_date, status, booking_number 
+         FROM "booking" 
+         WHERE room_id = $1 
+         AND status IN ($2, $3, $4)`,
+        [room_id, BookingStatus.CONFIRMED, BookingStatus.PENDING, 'checked_in']
+      );
+
+      // Check for conflicts using same logic as availability endpoint
+      let hasConflict = false;
+      let conflictingBooking = null;
+      
+      for (const booking of allBookings) {
+        const bookingStart = moment(booking.start_date).startOf('day');
+        const bookingEnd = moment(booking.end_date).startOf('day');
+        
+        // FRONTEND TEAM'S FIX: Checkout date is EXCLUSIVE
+        const conflicts = requestStart.isBefore(bookingEnd) && requestEnd.isAfter(bookingStart);
+        
+        console.log(`[GUEST-BOOKING] Checking booking ${booking.id}:`, {
+          bookingDates: `${bookingStart.format('YYYY-MM-DD')} to ${bookingEnd.format('YYYY-MM-DD')}`,
+          requestDates: `${requestStart.format('YYYY-MM-DD')} to ${requestEnd.format('YYYY-MM-DD')}`,
+          conflicts: conflicts
+        });
+        
+        if (conflicts) {
+          hasConflict = true;
+          conflictingBooking = booking;
+          break;
+        }
+      }
+
+      if (hasConflict) {
+        console.log(`[GUEST-BOOKING] ❌ Room not available for dates ${start_date} to ${end_date}`);
+        console.log(`[GUEST-BOOKING] Conflicting with booking ${conflictingBooking.id}`);
+        return next(new AppError('Room is not available for the selected dates', 400));
+      }
+      
+      console.log(`[GUEST-BOOKING] ✅ Room available for dates ${start_date} to ${end_date}`);
     }
+
+    // Availability logic complete - no additional checks needed
 
     // Calculate total price
     const startDate = new Date(start_date);
@@ -781,13 +1016,14 @@ export const checkRoomAvailability = async (
       return next(new AppError('Start date and end date are required', 400));
     }
 
-    // Validate room ID
     const roomIdNum = parseInt(roomId, 10);
     if (isNaN(roomIdNum)) {
       return next(new AppError('Invalid room ID', 400));
     }
 
-    // Get the room's current status
+    console.log(`[SIMPLE-CHECK] Room ${roomIdNum}, dates: ${start_date} to ${end_date}`);
+
+    // Get room info
     const { rows: roomRows } = await pool.query(
       'SELECT * FROM "homestayRoom" WHERE id = $1',
       [roomIdNum]
@@ -797,34 +1033,187 @@ export const checkRoomAvailability = async (
       return next(new AppError('Room not found', 404));
     }
 
-    const room = roomRows[0];
-    const roomStatus = room.status;
-
-    // Check if any bookings exist for this room in the date range
-    // IMPORTANT: Include PENDING bookings in this check
-    const { rows: bookings } = await pool.query(
-      `SELECT * FROM "booking" 
+    // Get ALL bookings for this room (for comprehensive analysis)
+    const { rows: allBookings } = await pool.query(
+      `SELECT id, start_date, end_date, status, booking_number 
+       FROM "booking" 
        WHERE room_id = $1 
-       AND status != $2
-       AND (
-         (start_date <= $3 AND end_date >= $3) OR
-         (start_date <= $4 AND end_date >= $4) OR
-         (start_date >= $3 AND end_date <= $4)
-       )`,
-      [roomIdNum, BookingStatus.CANCELLED, start_date, end_date]
+       AND status IN ('confirmed', 'pending')
+       ORDER BY start_date ASC`,
+      [roomIdNum]
     );
+
+    // Check for conflicts with the requested dates
+    const { rows: conflictingBookings } = await pool.query(
+      `SELECT id, start_date, end_date, status 
+       FROM "booking" 
+       WHERE room_id = $1 
+       AND status IN ('confirmed', 'pending')
+       AND NOT (end_date <= $2 OR start_date >= $3)`,
+      [roomIdNum, start_date, end_date]
+    );
+
+    console.log(`[SIMPLE-CHECK] Found ${conflictingBookings.length} conflicting bookings`);
     
-    // Room is unavailable if there are bookings or status is not available
-    const isAvailable = (bookings.length === 0) && 
-                      (['available', 'active', 'vacant'].includes(roomStatus));
+    const isAvailable = conflictingBookings.length === 0;
     
+    // Auto-fix room status
+    if (isAvailable) {
+      await pool.query(
+        'UPDATE "homestayRoom" SET status = $1 WHERE id = $2',
+        ['available', roomIdNum]
+      );
+    }
+
+    // Helper function to format dates consistently
+    const formatDate = (date: any): string => {
+      return new Date(date).toISOString().split('T')[0];
+    };
+
+    // Format booking for response
+    const formatBookingForResponse = (booking: any) => {
+      if (!booking) return null;
+      return {
+        ...booking,
+        start_date: formatDate(booking.start_date),
+        end_date: formatDate(booking.end_date)
+      };
+    };
+
+    // ✅ SMART NEXT AVAILABLE DATE LOGIC
+    let nextAvailableDate = null;
+    
+    if (!isAvailable && conflictingBookings.length > 0) {
+      // If there's a conflict, find the next truly available date
+      const conflictEnd = new Date(conflictingBookings[0].end_date);
+      const searchStart = new Date(conflictEnd.getTime() + 24 * 60 * 60 * 1000); // Day after conflict ends
+      
+      // Search for next available period (check next 30 days)
+      let foundAvailable = false;
+      for (let i = 0; i < 30 && !foundAvailable; i++) {
+        const checkDate = new Date(searchStart.getTime() + i * 24 * 60 * 60 * 1000);
+        const checkEnd = new Date(checkDate.getTime() + 24 * 60 * 60 * 1000);
+        
+        // Check if this date has conflicts with any booking
+        const hasConflictOnDate = allBookings.some(booking => {
+          const bookingStart = new Date(booking.start_date);
+          const bookingEnd = new Date(booking.end_date);
+          return checkDate < bookingEnd && checkEnd > bookingStart;
+        });
+        
+        if (!hasConflictOnDate) {
+          nextAvailableDate = formatDate(checkDate);
+          foundAvailable = true;
+        }
+      }
+    }
+    // If isAvailable is true, nextAvailableDate stays null (room is available now!)
+
+    // Response with corrected logic
     res.json({
       status: 'success',
       data: {
         is_available: isAvailable,
-        room_status: roomStatus,
-        has_bookings: bookings.length > 0
+        room_status: isAvailable ? 'available' : 'occupied',
+        has_bookings: allBookings.length > 0,
+        current_booking: formatBookingForResponse(conflictingBookings[0]),
+        next_available_date: nextAvailableDate, // ✅ FIXED: Only set when there's actual conflict
+        upcoming_bookings: allBookings.slice(0, 3).map(formatBookingForResponse)
       }
+    });
+    
+  } catch (error) {
+    console.error('[SIMPLE-CHECK] Error:', error);
+    next(error);
+  }
+};
+
+// Get all bookings for a specific room
+export const getRoomBookings = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { roomId } = req.params;
+    const { start_date, end_date, include_cancelled } = req.query;
+
+    // Validate room ID
+    const roomIdNum = parseInt(roomId, 10);
+    if (isNaN(roomIdNum)) {
+      return next(new AppError('Invalid room ID', 400));
+    }
+
+    // Check if room exists
+    const { rows: roomRows } = await pool.query(
+      'SELECT id FROM "homestayRoom" WHERE id = $1',
+      [roomIdNum]
+    );
+
+    if (roomRows.length === 0) {
+      return next(new AppError('Room not found', 404));
+    }
+
+    // Build query with optional filters
+    let query = `
+      SELECT b.id, b.booking_number, b.start_date, b.end_date, b.status, 
+             b.number_of_guests, b.user_id, b.notes,
+             u.name as guest_name
+      FROM "booking" b
+      LEFT JOIN "landing_page_user" u ON b.user_id = u.id
+      WHERE b.room_id = $1
+    `;
+    
+    const queryParams: any[] = [roomIdNum];
+    
+    // Add status filter (exclude cancelled by default)
+    if (include_cancelled !== 'true') {
+      query += ` AND b.status != $${queryParams.length + 1}`;
+      queryParams.push(BookingStatus.CANCELLED);
+    }
+    
+    // Add date filters
+    if (start_date) {
+      query += ` AND b.end_date >= $${queryParams.length + 1}`;
+      queryParams.push(start_date);
+    }
+    
+    if (end_date) {
+      query += ` AND b.start_date <= $${queryParams.length + 1}`;
+      queryParams.push(end_date);
+    }
+    
+    query += ' ORDER BY b.start_date ASC';
+    
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Format response data
+    const bookings = rows.map(row => {
+      let guestName = row.guest_name;
+      
+      // If no user_id, try to extract guest name from notes
+      if (!row.user_id && row.notes) {
+        const notesMatch = row.notes.match(/Guest: ([^,]+)/);
+        if (notesMatch) {
+          guestName = notesMatch[1];
+        }
+      }
+      
+      return {
+        id: row.id,
+        booking_number: row.booking_number,
+        start_date: new Date(row.start_date).toISOString().split('T')[0],
+        end_date: new Date(row.end_date).toISOString().split('T')[0],
+        status: row.status,
+        number_of_guests: row.number_of_guests,
+        guest_name: guestName,
+        user_id: row.user_id
+      };
+    });
+    
+    res.json({
+      status: 'success',
+      data: bookings
     });
   } catch (error) {
     next(error);
@@ -1139,6 +1528,153 @@ export const getBookingsByHomestay = async (
       data: bookings
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Check same-day availability (handles early checkout scenarios)
+export const checkSameDayAvailability = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { roomId } = req.params;
+    const queryDate = req.query.date as string;
+    
+    // Use provided date or today's date
+    const checkDate = queryDate || new Date().toISOString().split('T')[0];
+    
+    console.log(`[BOOKING] Same-day availability check for room ${roomId} on ${checkDate}`);
+    
+    // Validate room ID
+    const roomIdNum = parseInt(roomId, 10);
+    if (isNaN(roomIdNum)) {
+      return next(new AppError('Invalid room ID', 400));
+    }
+
+    // Check if room exists
+    const { rows: roomRows } = await pool.query(
+      'SELECT id FROM "homestayRoom" WHERE id = $1',
+      [roomIdNum]
+    );
+
+    if (roomRows.length === 0) {
+      return next(new AppError('Room not found', 404));
+    }
+
+    // Get all bookings for this room on the specified date
+    const { rows: bookings } = await pool.query(
+      `SELECT b.*, 
+              EXTRACT(EPOCH FROM (b.updated_at AT TIME ZONE 'UTC')) as updated_timestamp
+       FROM "booking" b
+       WHERE b.room_id = $1 
+         AND b.start_date <= $2 
+         AND b.end_date >= $2
+       ORDER BY b.updated_at DESC`,
+      [roomIdNum, checkDate]
+    );
+
+    console.log(`[BOOKING] Found ${bookings.length} bookings for room ${roomIdNum} on ${checkDate}`);
+
+    // Separate bookings by status
+    const completedToday = bookings.filter(booking => {
+      const isCompleted = booking.status === BookingStatus.COMPLETED;
+      const updatedToday = new Date(booking.updated_at).toISOString().split('T')[0] === checkDate;
+      return isCompleted && updatedToday;
+    });
+
+    const activeBookings = bookings.filter(booking => 
+      [BookingStatus.CONFIRMED, BookingStatus.PENDING].includes(booking.status)
+    );
+
+    console.log(`[BOOKING] ${completedToday.length} completed today, ${activeBookings.length} active bookings`);
+
+    // Scenario 1: Room has active bookings (occupied)
+    if (activeBookings.length > 0) {
+      const currentBooking = activeBookings[0];
+      const endTime = new Date(currentBooking.end_date).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      return res.json({
+        status: 'success',
+        data: {
+          is_available: false,
+          early_checkout: false,
+          current_booking: {
+            id: currentBooking.id,
+            booking_number: currentBooking.booking_number,
+            end_date: new Date(currentBooking.end_date).toISOString().split('T')[0], // Format as YYYY-MM-DD
+            status: currentBooking.status
+          },
+          earliest_booking_time: endTime,
+          message: 'Room is currently occupied',
+          can_book_today: false
+        }
+      });
+    }
+
+    // Scenario 2: Room had early checkout (completed booking today)
+    if (completedToday.length > 0) {
+      const latestCheckout = completedToday[0]; // Already ordered by updated_at DESC
+      const checkoutTime = new Date(latestCheckout.updated_at);
+      
+      // Calculate housekeeping completion time (2 hours after checkout)
+      const housekeepingCompleteTime = new Date(checkoutTime.getTime() + (2 * 60 * 60 * 1000));
+      const now = new Date();
+      const isHousekeepingComplete = now >= housekeepingCompleteTime;
+      
+      const checkoutTimeString = checkoutTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      
+      const housekeepingTimeString = housekeepingCompleteTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      return res.json({
+        status: 'success',
+        data: {
+          is_available: true,
+          early_checkout: true,
+          checkout_time: checkoutTimeString,
+          housekeeping_status: isHousekeepingComplete ? 'completed' : 'in_progress',
+          housekeeping_complete_time: housekeepingTimeString,
+          earliest_booking_time: isHousekeepingComplete ? 'now' : housekeepingTimeString,
+          can_book_today: true,
+          message: isHousekeepingComplete 
+            ? 'Room available after early checkout - housekeeping completed'
+            : `Room will be available after housekeeping completion at ${housekeepingTimeString}`,
+          previous_booking: {
+            id: latestCheckout.id,
+            booking_number: latestCheckout.booking_number,
+            checkout_time: checkoutTimeString
+          }
+        }
+      });
+    }
+
+    // Scenario 3: No bookings for today (room is available)
+    return res.json({
+      status: 'success',
+      data: {
+        is_available: true,
+        early_checkout: false,
+        earliest_booking_time: 'now',
+        can_book_today: true,
+        message: 'Room is available for same-day booking'
+      }
+    });
+
+  } catch (error) {
+    console.error('[BOOKING] Same-day availability check failed:', error);
     next(error);
   }
 }; 

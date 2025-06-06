@@ -47,15 +47,27 @@ class OAuthService {
      */
     async handleGoogleCallback(code, state) {
         try {
+            console.log('=== OAUTH SERVICE DEBUG ===');
+            console.log('Received code:', (code === null || code === void 0 ? void 0 : code.substring(0, 20)) + '...');
+            console.log('Received state:', state);
             // Verify and decode state
             const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+            console.log('Decoded state:', stateData);
             const { userType } = stateData;
             // Exchange code for tokens
+            console.log('Exchanging code for tokens...');
             const { tokens } = await this.oauth2Client.getToken(code);
             this.oauth2Client.setCredentials(tokens);
+            console.log('Tokens received, getting user profile...');
             // Get user profile from Google
             const oauth2 = googleapis_1.google.oauth2({ version: 'v2', auth: this.oauth2Client });
             const { data } = await oauth2.userinfo.get();
+            console.log('Google profile received:', {
+                id: data.id,
+                email: data.email,
+                name: data.name,
+                verified: data.verified_email
+            });
             const googleProfile = {
                 id: data.id,
                 email: data.email,
@@ -66,15 +78,36 @@ class OAuthService {
                 verified_email: data.verified_email || undefined
             };
             // Determine user type and handle accordingly
+            console.log('User type from state:', userType);
             if (userType === 'admin') {
-                return await this.handleAdminOAuth(googleProfile, tokens);
+                console.log('Processing as admin user...');
+                const result = await this.handleAdminOAuth(googleProfile, tokens);
+                console.log('Admin OAuth result:', { userType: result.userType, isNewUser: result.isNewUser });
+                console.log('=== END OAUTH SERVICE DEBUG ===');
+                return result;
             }
             else {
-                return await this.handleLandingUserOAuth(googleProfile, tokens);
+                console.log('Processing as landing user...');
+                const result = await this.handleLandingUserOAuth(googleProfile, tokens);
+                console.log('Landing OAuth result:', { userType: result.userType, isNewUser: result.isNewUser });
+                console.log('=== END OAUTH SERVICE DEBUG ===');
+                return result;
             }
         }
         catch (error) {
+            console.log('=== OAUTH SERVICE ERROR ===');
             console.error('Google OAuth callback error:', error);
+            // Log detailed error information
+            if (error instanceof Error) {
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+            }
+            // Log any database or API specific errors
+            if (error && typeof error === 'object') {
+                console.error('Error details:', JSON.stringify(error, null, 2));
+            }
+            console.log('=== END OAUTH SERVICE ERROR ===');
             throw new error_middleware_1.AppError('Failed to process Google authentication', 500);
         }
     }
@@ -118,6 +151,13 @@ class OAuthService {
                 return { user: this.sanitizeUser(user), token, isNewUser: false, userType: 'landing_user' };
             }
             // Create new user
+            console.log('Creating new user with data:', {
+                email: googleProfile.email,
+                given_name: googleProfile.given_name,
+                name_parts: googleProfile.name.split(' '),
+                picture: googleProfile.picture,
+                id: googleProfile.id
+            });
             const { rows: [newUser] } = await client.query(`INSERT INTO "landing_page_user" (
           email, name, last_name, phone_number, type, google_id, 
           oauth_provider, oauth_picture, auth_method, is_verified
@@ -134,6 +174,11 @@ class OAuthService {
                 'google',
                 true // Google emails are verified
             ]);
+            console.log('New user created successfully:', {
+                id: newUser.id,
+                email: newUser.email,
+                name: newUser.name
+            });
             await this.updateOAuthSession(client, newUser.id, 'landing_user', googleProfile, tokens);
             const token = (0, jwt_utils_1.generateUserToken)({
                 id: newUser.id,
@@ -145,6 +190,16 @@ class OAuthService {
         }
         catch (error) {
             await client.query('ROLLBACK');
+            console.log('=== LANDING USER OAUTH ERROR ===');
+            console.error('Error in handleLandingUserOAuth:', error);
+            if (error instanceof Error) {
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
+            console.log('=== END LANDING USER OAUTH ERROR ===');
             throw error;
         }
         finally {
