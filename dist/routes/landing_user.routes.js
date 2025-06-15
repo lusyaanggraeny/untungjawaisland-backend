@@ -10,4 +10,8 @@ router.post('/register', landing_user_controller_1.registerUser);
 router.post('/login', landing_user_controller_1.loginUser);
 // Protected routes
 router.get('/profile', auth_middleware_1.authenticateToken, landing_user_controller_1.getUserProfile);
+router.put('/profile', auth_middleware_1.authenticateToken, landing_user_controller_1.updateUserProfile);
+router.put('/change-password', auth_middleware_1.authenticateToken, landing_user_controller_1.changePassword);
+router.get('/notification-preferences', auth_middleware_1.authenticateToken, landing_user_controller_1.getNotificationPreferences);
+router.put('/notification-preferences', auth_middleware_1.authenticateToken, landing_user_controller_1.updateNotificationPreferences);
 exports.landingUserRoutes = router;

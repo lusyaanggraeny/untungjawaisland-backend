@@ -38,7 +38,7 @@ pool.connect((err, client, release) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/landing-users', landingUserRoutes);
+app.use('/api/profile', landingUserRoutes);
 app.use('/api/homestays', homestayRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/bookings', bookingRoutes);

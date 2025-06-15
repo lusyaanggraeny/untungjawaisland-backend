@@ -539,22 +539,30 @@ exports.updateBookingStatus = updateBookingStatus;
 const createGuestBooking = async (req, res, next) => {
     const client = await database_1.pool.connect();
     try {
+        console.log('[GUEST-BOOKING] Starting guest booking creation...');
+        console.log('[GUEST-BOOKING] Request body:', req.body);
         await client.query('BEGIN');
         const { start_date, end_date, room_id, number_of_guests, guest_name, guest_email, guest_phone, special_requests, notes, check_in_time, check_out_time, payment_method } = req.body;
+        console.log('[GUEST-BOOKING] Validating required fields...');
         // Validate required guest information
         if (!guest_name || !guest_email || !guest_phone) {
+            console.log('[GUEST-BOOKING] ❌ Missing guest information');
             return next(new error_middleware_1.AppError('Guest name, email, and phone are required', 400));
         }
         // Validate required booking fields
         if (!start_date || !end_date || !room_id || !number_of_guests) {
+            console.log('[GUEST-BOOKING] ❌ Missing booking information');
             return next(new error_middleware_1.AppError('Start date, end date, room ID and number of guests are required', 400));
         }
+        console.log('[GUEST-BOOKING] Fetching room information...');
         // Verify room exists and is available
         const { rows: roomRows } = await client.query('SELECT hr.*, h.base_price, h.title as homestay_title FROM "homestayRoom" hr JOIN "homestay" h ON hr.homestay_id = h.id WHERE hr.id = $1', [room_id]);
         if (roomRows.length === 0) {
+            console.log('[GUEST-BOOKING] ❌ Room not found');
             return next(new error_middleware_1.AppError('Room not found', 404));
         }
         const room = roomRows[0];
+        console.log('[GUEST-BOOKING] Room found:', room.title);
         // Check if room is available for the requested dates
         // Enhanced logic to handle same-day bookings with early checkout
         // Use string comparison for dates to avoid timezone issues
@@ -615,7 +623,7 @@ const createGuestBooking = async (req, res, next) => {
             const { rows: allBookings } = await client.query(`SELECT id, start_date, end_date, status, booking_number 
          FROM "booking" 
          WHERE room_id = $1 
-         AND status IN ($2, $3, $4)`, [room_id, booking_types_1.BookingStatus.CONFIRMED, booking_types_1.BookingStatus.PENDING, 'checked_in']);
+         AND status IN ($2, $3)`, [room_id, booking_types_1.BookingStatus.CONFIRMED, booking_types_1.BookingStatus.PENDING]);
             // Check for conflicts using same logic as availability endpoint
             let hasConflict = false;
             let conflictingBooking = null;
@@ -642,19 +650,25 @@ const createGuestBooking = async (req, res, next) => {
             }
             console.log(`[GUEST-BOOKING] ✅ Room available for dates ${start_date} to ${end_date}`);
         }
-        // Availability logic complete - no additional checks needed
+        console.log('[GUEST-BOOKING] Calculating price...');
         // Calculate total price
         const startDate = new Date(start_date);
         const endDate = new Date(end_date);
         const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-        if (nights <= 0) {
-            return next(new error_middleware_1.AppError('End date must be after start date', 400));
+        // For same-day bookings, consider it as 1 night
+        const actualNights = nights <= 0 ? 1 : nights;
+        console.log(`[GUEST-BOOKING] Date calculation: ${start_date} to ${end_date} = ${nights} days, treating as ${actualNights} night(s)`);
+        if (startDate > endDate) {
+            console.log('[GUEST-BOOKING] ❌ Invalid date range - start date after end date');
+            return next(new error_middleware_1.AppError('Start date cannot be after end date', 400));
         }
-        const totalPrice = room.price * nights;
+        const totalPrice = room.price * actualNights;
         const bookingNumber = generateBookingNumber();
+        console.log(`[GUEST-BOOKING] Calculated: ${actualNights} nights x ${room.price} = ${totalPrice}`);
         // Store guest info in notes field
         const guestInfo = `Guest: ${guest_name}, Email: ${guest_email}, Phone: ${guest_phone}`;
         const combinedNotes = notes ? `${notes}\n\n${guestInfo}` : guestInfo;
+        console.log('[GUEST-BOOKING] Creating booking record...');
         // Create the booking
         const { rows: [newBooking] } = await client.query(`INSERT INTO "booking" (
         start_date, end_date, room_id, status, is_paid, user_id, 
@@ -677,10 +691,12 @@ const createGuestBooking = async (req, res, next) => {
             combinedNotes,
             special_requests || null
         ]);
+        console.log('[GUEST-BOOKING] Booking created with ID:', newBooking.id);
         // IMPORTANT: Update the room status to occupied
         await client.query(`UPDATE "homestayRoom" SET status = 'occupied', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [room_id]);
-        console.log(`Room ${room_id} status updated to occupied for guest booking ${newBooking.id}`);
+        console.log(`[GUEST-BOOKING] Room ${room_id} status updated to occupied for guest booking ${newBooking.id}`);
         await client.query('COMMIT');
+        console.log('[GUEST-BOOKING] Transaction committed successfully');
         // Return room and homestay details along with the booking
         const bookingWithDetails = Object.assign(Object.assign({}, newBooking), { room: {
                 id: room.id,
@@ -750,12 +766,14 @@ const createGuestBooking = async (req, res, next) => {
             // Don't fail the request if email sending fails
             console.error('Error sending guest booking emails:', emailError);
         }
+        console.log('[GUEST-BOOKING] ✅ Guest booking completed successfully');
         res.status(201).json({
             status: 'success',
             data: bookingWithDetails
         });
     }
     catch (error) {
+        console.error('[GUEST-BOOKING] ❌ Error occurred:', error);
         await client.query('ROLLBACK');
         next(error);
     }

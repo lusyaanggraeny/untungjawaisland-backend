@@ -39,7 +39,7 @@ database_1.pool.connect((err, client, release) => {
 app.use('/api/auth', auth_routes_1.authRoutes);
 app.use('/api/oauth', oauth_routes_1.oauthRoutes);
 app.use('/api/users', user_routes_1.userRoutes);
-app.use('/api/landing-users', landing_user_routes_1.landingUserRoutes);
+app.use('/api/profile', landing_user_routes_1.landingUserRoutes);
 app.use('/api/homestays', homestay_routes_1.default);
 app.use('/api/rooms', room_routes_1.default);
 app.use('/api/bookings', booking_routes_1.bookingRoutes);
