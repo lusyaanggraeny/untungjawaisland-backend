@@ -1,0 +1,22 @@
+Hey guys! 👋
+
+Just wrapped up the QRIS payment feature - it's live and ready for you to break it! 😄
+
+What's working now:
+✅ QRIS payment creation & QR codes
+✅ Payment tracking 
+✅ Auto booking confirmation
+✅ Full Xendit integration
+
+Quick heads up - we're still on Xendit's test keys because they need a bunch of business docs before we can go live:
+- Company registration stuff (SIUP/NIB)
+- Bank account verification
+- KTP for directors
+- Business address proof
+- Their review process (1-7 days)
+
+So for now it's all test payments (no real money), but everything works exactly like it will in production.
+
+Go ahead and test the whole flow - booking to payment to confirmation. Let me know if anything breaks!
+
+Cheers 🍻 

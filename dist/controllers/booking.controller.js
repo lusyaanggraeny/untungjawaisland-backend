@@ -20,6 +20,9 @@ const generateBookingNumber = () => {
 // Create a new booking
 const createBooking = async (req, res, next) => {
     var _a, _b;
+    console.log('📝 [BOOKING DEBUG] CreateBooking endpoint hit');
+    console.log('📝 [BOOKING DEBUG] User from token:', req.user);
+    console.log('📝 [BOOKING DEBUG] Request body:', req.body);
     const client = await database_1.pool.connect();
     try {
         await client.query('BEGIN');
@@ -425,8 +428,13 @@ const updateBookingStatus = async (req, res, next) => {
         if (isLandingUser && booking.user_id !== user.id) {
             return next(new error_middleware_1.AppError('Not authorized to update this booking', 403));
         }
-        if (isLandingUser && status !== booking_types_1.BookingStatus.CANCELLED) {
-            return next(new error_middleware_1.AppError('Regular users can only cancel bookings', 403));
+        // Allow landing users to cancel their bookings or confirm after payment
+        if (isLandingUser && status !== booking_types_1.BookingStatus.CANCELLED && status !== booking_types_1.BookingStatus.CONFIRMED) {
+            return next(new error_middleware_1.AppError('Regular users can only cancel or confirm their bookings', 403));
+        }
+        // Additional check: users can only confirm if payment is completed
+        if (isLandingUser && status === booking_types_1.BookingStatus.CONFIRMED && !booking.is_paid) {
+            return next(new error_middleware_1.AppError('Cannot confirm booking without payment', 403));
         }
         // Store the old status for comparison
         const oldStatus = booking.status;

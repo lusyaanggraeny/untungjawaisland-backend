@@ -30,6 +30,10 @@ export const createBooking = async (
   res: Response,
   next: NextFunction
 ) => {
+  console.log('📝 [BOOKING DEBUG] CreateBooking endpoint hit');
+  console.log('📝 [BOOKING DEBUG] User from token:', req.user);
+  console.log('📝 [BOOKING DEBUG] Request body:', req.body);
+  
   const client = await pool.connect();
   
   try {
@@ -562,8 +566,14 @@ export const updateBookingStatus = async (
       return next(new AppError('Not authorized to update this booking', 403));
     }
 
-    if (isLandingUser && status !== BookingStatus.CANCELLED) {
-      return next(new AppError('Regular users can only cancel bookings', 403));
+    // Allow landing users to cancel their bookings or confirm after payment
+    if (isLandingUser && status !== BookingStatus.CANCELLED && status !== BookingStatus.CONFIRMED) {
+      return next(new AppError('Regular users can only cancel or confirm their bookings', 403));
+    }
+    
+    // Additional check: users can only confirm if payment is completed
+    if (isLandingUser && status === BookingStatus.CONFIRMED && !booking.is_paid) {
+      return next(new AppError('Cannot confirm booking without payment', 403));
     }
 
     // Store the old status for comparison
