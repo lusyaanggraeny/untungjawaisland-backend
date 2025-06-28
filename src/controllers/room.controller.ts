@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../config/database';
 import { AppError } from '../middleware/error.middleware';
+import { validateLanguageCode, applyRoomTranslations } from '../utils/translation.utils';
 
 // Get room by ID with homestay information
 export const getRoomById = async (
@@ -11,6 +12,7 @@ export const getRoomById = async (
   try {
     const { id } = req.params;
     const roomId = parseInt(id, 10);
+    const lang = validateLanguageCode(req.query.lang as string);
     
     if (isNaN(roomId)) {
       return next(new AppError('Invalid room ID', 400));
@@ -41,9 +43,22 @@ export const getRoomById = async (
 
     const room = rows[0];
     
+    // Get room translations
+    const { rows: translations } = await pool.query(
+      `SELECT language_code, title, description
+       FROM "room_translations"
+       WHERE room_id = $1`,
+      [roomId]
+    );
+    
+    // Apply translations
+    const translatedRoom = translations.length > 0 
+      ? applyRoomTranslations(room, translations, lang)
+      : room;
+    
     res.json({
       status: 'success',
-      data: room
+      data: translatedRoom
     });
   } catch (error) {
     next(error);
@@ -57,6 +72,8 @@ export const getAllRooms = async (
   next: NextFunction
 ) => {
   try {
+    const lang = validateLanguageCode(req.query.lang as string);
+    
     const { rows } = await pool.query(
       `SELECT 
         hr.*,
@@ -75,11 +92,45 @@ export const getAllRooms = async (
       ORDER BY h.created_at DESC, hr.created_at ASC`
     );
     
-    res.json({
-      status: 'success',
-      results: rows.length,
-      data: rows
-    });
+    // Get all room translations at once
+    if (rows.length > 0) {
+      const roomIds = rows.map(room => room.id);
+      const { rows: translations } = await pool.query(
+        `SELECT room_id, language_code, title, description
+         FROM "room_translations"
+         WHERE room_id = ANY($1)`,
+        [roomIds]
+      );
+      
+      // Group translations by room_id
+      const translationsMap: Record<number, any[]> = {};
+      translations.forEach(translation => {
+        if (!translationsMap[translation.room_id]) {
+          translationsMap[translation.room_id] = [];
+        }
+        translationsMap[translation.room_id].push(translation);
+      });
+      
+      // Apply translations to each room
+      const translatedRooms = rows.map(room => {
+        const roomTranslations = translationsMap[room.id] || [];
+        return roomTranslations.length > 0 
+          ? applyRoomTranslations(room, roomTranslations, lang)
+          : room;
+      });
+      
+      res.json({
+        status: 'success',
+        results: translatedRooms.length,
+        data: translatedRooms
+      });
+    } else {
+      res.json({
+        status: 'success',
+        results: 0,
+        data: []
+      });
+    }
   } catch (error) {
     next(error);
   }

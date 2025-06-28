@@ -2,10 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { pool } from '../config/database';
 import { HomestayCreateInput, HomestayUpdateInput, HomestayImageCreateInput } from '../types/homestay.types';
 import { AppError } from '../middleware/error.middleware';
+import { validateLanguageCode, applyHomestayTranslations, applyRoomsTranslations } from '../utils/translation.utils';
 
 // Get all active homestays with owner name, images, and rooms
 export const getAllHomestays = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const lang = validateLanguageCode(req.query.lang as string);
+    
     const query = `
       SELECT 
         h.*,
@@ -35,7 +38,18 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
             ))
           FROM "homestayRoom" hr 
           WHERE hr.homestay_id = h.id
-        ) as rooms
+        ) as rooms,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'language_code', ht.language_code,
+              'title', ht.title,
+              'description', ht.description
+            )
+          )
+          FROM "homestay_translations" ht
+          WHERE ht.homestay_id = h.id
+        ) as translations
       FROM "homestay" h 
       JOIN "admin_users" u ON h.user_id = u.id
       WHERE h.status = 'active'
@@ -57,7 +71,39 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
       'https://images.unsplash.com/photo-1486304873000-235643847519?w=800&h=600&fit=crop'
     ];
 
-    homestays.forEach((homestay) => {
+    // Process homestays and apply translations
+    const processedHomestays = [];
+    
+    // Get all room IDs for batch translation fetch
+    const allRoomIds: number[] = [];
+    homestays.forEach(homestay => {
+      if (homestay.rooms && Array.isArray(homestay.rooms)) {
+        homestay.rooms.forEach((room: any) => allRoomIds.push(room.id));
+      }
+    });
+    
+    // Fetch all room translations at once
+    let roomTranslationsMap: Record<number, any[]> = {};
+    if (allRoomIds.length > 0) {
+      const roomTranslationsQuery = `
+        SELECT room_id, language_code, title, description
+        FROM "room_translations"
+        WHERE room_id = ANY($1)
+      `;
+      
+      const { rows: roomTranslations } = await pool.query(roomTranslationsQuery, [allRoomIds]);
+      
+      // Group translations by room_id
+      roomTranslations.forEach(translation => {
+        if (!roomTranslationsMap[translation.room_id]) {
+          roomTranslationsMap[translation.room_id] = [];
+        }
+        roomTranslationsMap[translation.room_id].push(translation);
+      });
+    }
+
+    // Process each homestay
+    for (const homestay of homestays) {
       // Only add fallback if database returned NULL (no images at all)
       if (homestay.homestayImages === null) {
         const imageIndex = homestay.id % fallbackImages.length;
@@ -68,11 +114,30 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
           order: 1
         }];
       }
-    });
+      
+      // Apply translations to homestay
+      const translatedHomestay = homestay.translations 
+        ? applyHomestayTranslations(homestay, homestay.translations, lang)
+        : homestay;
+      
+      // Apply translations to rooms
+      if (translatedHomestay.rooms && translatedHomestay.rooms.length > 0) {
+        translatedHomestay.rooms = applyRoomsTranslations(
+          translatedHomestay.rooms, 
+          roomTranslationsMap, 
+          lang
+        );
+      }
+      
+      // Clean up translation data from response
+      delete translatedHomestay.translations;
+      
+      processedHomestays.push(translatedHomestay);
+    }
 
     res.json({
       status: 'success',
-      data: homestays
+      data: processedHomestays
     });
   } catch (error) {
     next(error);
@@ -83,6 +148,8 @@ export const getAllHomestays = async (req: Request, res: Response, next: NextFun
 export const getHomestayById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const lang = validateLanguageCode(req.query.lang as string);
+    
     const query = `
       SELECT 
         h.*,
@@ -125,7 +192,18 @@ export const getHomestayById = async (req: Request, res: Response, next: NextFun
           ))
           FROM "homestayRoom" hr 
           WHERE hr.homestay_id = h.id
-        ) as rooms
+        ) as rooms,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'language_code', ht.language_code,
+              'title', ht.title,
+              'description', ht.description
+            )
+          )
+          FROM "homestay_translations" ht
+          WHERE ht.homestay_id = h.id
+        ) as translations
       FROM "homestay" h 
       JOIN "admin_users" u ON h.user_id = u.id 
       WHERE h.id = $1;
@@ -155,9 +233,46 @@ export const getHomestayById = async (req: Request, res: Response, next: NextFun
       }];
     }
 
+    // Apply translations to homestay
+    const translatedHomestay = homestay.translations 
+      ? applyHomestayTranslations(homestay, homestay.translations, lang)
+      : homestay;
+    
+    // Fetch and apply room translations separately for better performance
+    if (translatedHomestay.rooms && translatedHomestay.rooms.length > 0) {
+      const roomIds = translatedHomestay.rooms.map((room: any) => room.id);
+      
+      const roomTranslationsQuery = `
+        SELECT room_id, language_code, title, description
+        FROM "room_translations"
+        WHERE room_id = ANY($1)
+      `;
+      
+      const { rows: roomTranslations } = await pool.query(roomTranslationsQuery, [roomIds]);
+      
+      // Group translations by room_id
+      const roomTranslationsMap: Record<number, any[]> = {};
+      roomTranslations.forEach(translation => {
+        if (!roomTranslationsMap[translation.room_id]) {
+          roomTranslationsMap[translation.room_id] = [];
+        }
+        roomTranslationsMap[translation.room_id].push(translation);
+      });
+      
+      // Apply translations to rooms
+      translatedHomestay.rooms = applyRoomsTranslations(
+        translatedHomestay.rooms, 
+        roomTranslationsMap, 
+        lang
+      );
+    }
+
+    // Clean up translation data from response
+    delete translatedHomestay.translations;
+
     res.json({
       status: 'success',
-      data: homestay
+      data: translatedHomestay
     });
   } catch (error) {
     next(error);

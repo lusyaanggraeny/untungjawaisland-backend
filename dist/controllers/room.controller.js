@@ -3,11 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRoomBlockedPeriods = exports.getHomestayRoomsStatus = exports.getRoomStatus = exports.updateRoomStatus = exports.updateRoomAvailability = exports.getAllRooms = exports.getRoomById = void 0;
 const database_1 = require("../config/database");
 const error_middleware_1 = require("../middleware/error.middleware");
+const translation_utils_1 = require("../utils/translation.utils");
 // Get room by ID with homestay information
 const getRoomById = async (req, res, next) => {
     try {
         const { id } = req.params;
         const roomId = parseInt(id, 10);
+        const lang = (0, translation_utils_1.validateLanguageCode)(req.query.lang);
         if (isNaN(roomId)) {
             return next(new error_middleware_1.AppError('Invalid room ID', 400));
         }
@@ -30,9 +32,17 @@ const getRoomById = async (req, res, next) => {
             return next(new error_middleware_1.AppError('Room not found', 404));
         }
         const room = rows[0];
+        // Get room translations
+        const { rows: translations } = await database_1.pool.query(`SELECT language_code, title, description
+       FROM "room_translations"
+       WHERE room_id = $1`, [roomId]);
+        // Apply translations
+        const translatedRoom = translations.length > 0
+            ? (0, translation_utils_1.applyRoomTranslations)(room, translations, lang)
+            : room;
         res.json({
             status: 'success',
-            data: room
+            data: translatedRoom
         });
     }
     catch (error) {
@@ -43,6 +53,7 @@ exports.getRoomById = getRoomById;
 // Get all rooms with homestay information
 const getAllRooms = async (req, res, next) => {
     try {
+        const lang = (0, translation_utils_1.validateLanguageCode)(req.query.lang);
         const { rows } = await database_1.pool.query(`SELECT 
         hr.*,
         hr.id as room_id,
@@ -58,11 +69,40 @@ const getAllRooms = async (req, res, next) => {
       JOIN "homestay" h ON hr.homestay_id = h.id
       WHERE h.status = 'active'
       ORDER BY h.created_at DESC, hr.created_at ASC`);
-        res.json({
-            status: 'success',
-            results: rows.length,
-            data: rows
-        });
+        // Get all room translations at once
+        if (rows.length > 0) {
+            const roomIds = rows.map(room => room.id);
+            const { rows: translations } = await database_1.pool.query(`SELECT room_id, language_code, title, description
+         FROM "room_translations"
+         WHERE room_id = ANY($1)`, [roomIds]);
+            // Group translations by room_id
+            const translationsMap = {};
+            translations.forEach(translation => {
+                if (!translationsMap[translation.room_id]) {
+                    translationsMap[translation.room_id] = [];
+                }
+                translationsMap[translation.room_id].push(translation);
+            });
+            // Apply translations to each room
+            const translatedRooms = rows.map(room => {
+                const roomTranslations = translationsMap[room.id] || [];
+                return roomTranslations.length > 0
+                    ? (0, translation_utils_1.applyRoomTranslations)(room, roomTranslations, lang)
+                    : room;
+            });
+            res.json({
+                status: 'success',
+                results: translatedRooms.length,
+                data: translatedRooms
+            });
+        }
+        else {
+            res.json({
+                status: 'success',
+                results: 0,
+                data: []
+            });
+        }
     }
     catch (error) {
         next(error);
