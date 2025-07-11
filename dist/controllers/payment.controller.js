@@ -22,12 +22,22 @@ const createPayment = async (req, res, next) => {
         const { rows: [newPayment] } = await database_1.pool.query(`INSERT INTO payments (booking_id, amount, payment_method, transaction_id)
        VALUES ($1, $2, $3, $4)
        RETURNING *`, [booking_id, amount, payment_method, transaction_id]);
+        // Set booking status to 'PENDING PAYMENT'
+        await database_1.pool.query('UPDATE bookings SET status = $1 WHERE id = $2', ['PENDING PAYMENT', booking_id]);
         // Create initial transaction record
         await database_1.pool.query(`INSERT INTO payment_transactions (payment_id, amount, status, transaction_id)
        VALUES ($1, $2, 'PENDING', $3)`, [newPayment.id, amount, transaction_id]);
+        // WhatsApp instructions for user
+        const rusliNumber = '6281234567890'; // TODO: Replace with real number
+        const message = encodeURIComponent(`Hello, I have made a booking. My booking number is: ${booking_id}. Please advise on payment.`);
+        const whatsappLink = `https://wa.me/${rusliNumber}?text=${message}`;
         res.status(201).json({
             status: 'success',
-            data: newPayment
+            data: Object.assign(Object.assign({}, newPayment), { instructions: {
+                    id: 'Silakan hubungi Pak Rusli melalui WhatsApp untuk menyelesaikan pembayaran Anda.',
+                    en: 'Please contact Mr. Rusli via WhatsApp to complete your payment.',
+                    whatsapp_link: whatsappLink
+                } })
         });
     }
     catch (error) {

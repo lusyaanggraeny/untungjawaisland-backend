@@ -11,7 +11,6 @@ import homestayRoutes from './routes/homestay.routes';
 import roomRoutes from './routes/room.routes';
 import { reviewRoutes } from './routes/review.routes';
 import paymentRoutes from './routes/payment.routes';
-import qrisPaymentRoutes from './routes/qris-payment.routes';
 import { oauthRoutes } from './routes/oauth.routes';
 
 // Load environment variables
@@ -45,7 +44,6 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/qris', qrisPaymentRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

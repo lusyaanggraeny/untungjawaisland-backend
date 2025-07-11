@@ -1,0 +1,78 @@
+# Cancel Booking API Integration Guide
+
+## 1. API Endpoint
+
+- **URL:** `/api/bookings/:id/status`
+  - Replace `:id` with the booking ID you want to cancel.
+- **Method:** `PUT`
+
+## 2. Authentication Requirements
+
+- The user **must be authenticated** (JWT Bearer token in the `Authorization` header).
+- The user can only cancel their own bookings (not other users').
+
+## 3. Request Body
+
+```json
+{
+  "status": "cancelled",
+  "cancellation_reason": "<reason for cancellation>" // Optional, but recommended
+}
+```
+
+## 4. Sample Request (JavaScript/Fetch)
+
+```js
+fetch(`/api/bookings/123/status`, {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authToken}` // Replace with user's JWT
+  },
+  body: JSON.stringify({
+    status: 'cancelled',
+    cancellation_reason: 'Change of plans'
+  })
+})
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+## 5. Sample Request (Axios)
+
+```js
+import axios from 'axios';
+
+const response = await axios.put(
+  `/api/bookings/123/status`,
+  {
+    status: 'cancelled',
+    cancellation_reason: 'Change of plans'
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${authToken}`
+    }
+  }
+);
+console.log(response.data);
+```
+
+## 6. Sample Response
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 123,
+    "status": "cancelled",
+    "cancellation_reason": "Change of plans",
+    // ...other booking fields
+  }
+}
+```
+
+## 7. Notes
+- Only the booking owner can cancel their booking.
+- After cancellation, the room will become available for new bookings.
+- If the user is not authenticated or tries to cancel someone else's booking, the API will return an error. 

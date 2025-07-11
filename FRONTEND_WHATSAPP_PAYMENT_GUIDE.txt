@@ -1,0 +1,73 @@
+# Frontend WhatsApp Payment Integration Guide
+
+## OVERVIEW
+The payment flow is now manual via WhatsApp. After booking, the guest is instructed to contact Mr. Rusli via WhatsApp to complete payment. The booking remains "PENDING PAYMENT" until confirmed by Mr. Rusli/admin (handled outside this codebase).
+
+## FILE STRUCTURE TO MODIFY
+
+src/
+├── components/
+│   ├── booking/
+│   │   ├── BookingFlow.jsx (modify)
+│   │   ├── PaymentPage.jsx (replace QRIS logic)
+│   │   └── PaymentSuccess.jsx (update)
+├── services/
+│   ├── paymentService.js (update)
+└── utils/
+    └── whatsappUtils.js (new, optional)
+
+## STEP 1: UPDATE BOOKING FLOW
+
+- After successful booking, show a new PaymentPage with:
+  - WhatsApp instructions (in English and Indonesian)
+  - A button: "Contact Mr. Rusli via WhatsApp"
+  - The button opens WhatsApp chat with a pre-filled message:
+    - "Hello, I have made a booking. My booking number is: [booking_number]. Please advise on payment."
+
+## STEP 2: REMOVE QRIS/QR CODE LOGIC
+
+- Delete or comment out all QRIS/QR code components and logic.
+- Remove polling for payment status.
+
+## STEP 3: HANDLE PAYMENT CONFIRMATION
+
+- After Mr. Rusli confirms payment (via backend/admin), the booking status will be updated to "CONFIRMED".
+- Optionally, poll the booking status every 10 seconds and show a "Waiting for payment confirmation..." message until status is "CONFIRMED".
+
+## STEP 4: EXAMPLE WHATSAPP BUTTON
+
+```jsx
+// utils/whatsappUtils.js
+export function getWhatsAppLink(bookingNumber) {
+  const rusliNumber = '6281234567890'; // Replace with Mr. Rusli's real number
+  const message = encodeURIComponent(
+    `Hello, I have made a booking. My booking number is: ${bookingNumber}. Please advise on payment.`
+  );
+  return `https://wa.me/${rusliNumber}?text=${message}`;
+}
+
+// In PaymentPage.jsx
+import { getWhatsAppLink } from '../utils/whatsappUtils';
+
+<button
+  onClick={() => window.open(getWhatsAppLink(bookingNumber), '_blank')}
+>
+  Contact Mr. Rusli via WhatsApp
+</button>
+```
+
+## STEP 5: TESTING CHECKLIST
+
+- [ ] Booking form submits and shows WhatsApp instructions
+- [ ] WhatsApp button opens chat with correct message
+- [ ] Booking status updates to "CONFIRMED" after admin confirmation
+- [ ] No QR code or QRIS logic remains
+
+## USAGE FLOW
+
+1. Guest fills booking form
+2. Clicks "Continue to Payment"
+3. Sees WhatsApp instructions and button
+4. Clicks button, contacts Mr. Rusli
+5. Mr. Rusli/admin confirms payment in backend
+6. Guest sees booking status updated to "CONFIRMED" 

@@ -16,7 +16,6 @@ const homestay_routes_1 = __importDefault(require("./routes/homestay.routes"));
 const room_routes_1 = __importDefault(require("./routes/room.routes"));
 const review_routes_1 = require("./routes/review.routes");
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
-const qris_payment_routes_1 = __importDefault(require("./routes/qris-payment.routes"));
 const oauth_routes_1 = require("./routes/oauth.routes");
 // Load environment variables
 dotenv_1.default.config();
@@ -46,7 +45,6 @@ app.use('/api/rooms', room_routes_1.default);
 app.use('/api/bookings', booking_routes_1.bookingRoutes);
 app.use('/api/reviews', review_routes_1.reviewRoutes);
 app.use('/api/payments', payment_routes_1.default);
-app.use('/api/qris', qris_payment_routes_1.default);
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({

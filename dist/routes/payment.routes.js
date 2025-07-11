@@ -11,6 +11,7 @@ const router = express_1.default.Router();
 router.use(auth_middleware_1.authenticateToken);
 // Admin routes - GET all payments
 router.get('/', payment_controller_1.getAllPayments); // Get all payments (admin)
+// NOTE: Manual payment confirmation (by admin/owner) is handled in a separate system, not in this codebase.
 // Get user's payments
 router.get('/user/payments', payment_controller_1.getPaymentsByUser);
 // Get payments by booking
