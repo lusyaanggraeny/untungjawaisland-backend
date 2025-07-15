@@ -1,0 +1,111 @@
+# Admin Dashboard: Add Room to Homestay Integration Guide
+
+## Overview
+To ensure the booking and availability features work correctly, every homestay **must have at least one room** in the `homestayRoom` table. The `has_rooms` column in the `homestay` table is only a flag and does not create actual rooms. The backend checks room availability using the `homestayRoom` table.
+
+If a homestay has no rooms, it will not be bookable and all availability checks will fail.
+
+---
+
+## 1. API Endpoint to Add a Room
+
+- **URL:** `/api/rooms`
+- **Method:** `POST`
+- **Authentication:** Admin or Homestay Owner (JWT required)
+
+### Request Body Example
+```json
+{
+  "homestay_id": 1,           // ID of the homestay to add the room to
+  "title": "Deluxe Room",     // Room name/title
+  "description": "Spacious room with sea view",
+  "room_number": "101",      // Unique room number within the homestay
+  "number_people": 2,         // Default/maximum number of people
+  "max_occupancy": 2,         // Maximum allowed guests
+  "price": 500000,            // Price per night (IDR)
+  "currency": "IDR",         // Currency code
+  "size": "25 sqm"           // (Optional) Room size
+}
+```
+
+### Sample Request (Axios)
+```js
+import axios from 'axios';
+
+const response = await axios.post(
+  '/api/rooms',
+  {
+    homestay_id: 1,
+    title: 'Deluxe Room',
+    description: 'Spacious room with sea view',
+    room_number: '101',
+    number_people: 2,
+    max_occupancy: 2,
+    price: 500000,
+    currency: 'IDR',
+    size: '25 sqm'
+  },
+  {
+    headers: { Authorization: `Bearer ${authToken}` }
+  }
+);
+console.log(response.data);
+```
+
+### Sample Response
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 10,
+    "homestay_id": 1,
+    "title": "Deluxe Room",
+    "room_number": "101",
+    "status": "available",
+    // ...other room fields
+  }
+}
+```
+
+---
+
+## 2. Best Practices
+- **Always create at least one room** for every new homestay.
+- **Do not rely on the `has_rooms` flag** to indicate room existence—rooms must be present in the `homestayRoom` table.
+- **Room numbers must be unique** within each homestay.
+- **After adding a room**, the homestay will be bookable and availability checks will work.
+- **If a homestay has no rooms, it will not appear as available for booking.**
+
+---
+
+## 3. Additional Features (Optional)
+- Allow editing and deleting rooms via the dashboard.
+- Display a warning if a homestay has no rooms.
+- Show a list of all rooms for each homestay in the dashboard.
+
+---
+
+## 4. Troubleshooting
+- If availability checks fail, verify that the homestay has at least one room in the database.
+- If bookings cannot be made, check that the room status is set to `available`.
+
+---
+
+## 5. Reference: Room Table Schema (homestayRoom)
+- `id`: SERIAL PRIMARY KEY
+- `homestay_id`: INTEGER (FK to homestay)
+- `title`: VARCHAR(255)
+- `description`: TEXT
+- `status`: ENUM('available', 'occupied', 'maintenance')
+- `room_number`: VARCHAR(50)
+- `number_people`: INTEGER
+- `max_occupancy`: INTEGER
+- `price`: DECIMAL(10,2)
+- `currency`: VARCHAR(3)
+- `size`: VARCHAR(50)
+- ...
+
+---
+
+**Summary:**
+> Always add at least one room to every homestay using the `/api/rooms` POST endpoint. This ensures the booking and availability features work as expected. 
