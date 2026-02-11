@@ -1,0 +1,32 @@
+[33mc2dd4eb[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: update backend
+[33mb30891f[m chore: remove punycode and xendit-node dependencies from package.json and package-lock.json to reduce project size
+[33m935203f[m Moving docs to docs folder
+[33mf2d3d25[m chore: remove backend OAuth status report file as it is no longer needed
+[33m67979bd[m chore: remove outdated API endpoints documentation to streamline project files
+[33me200dc3[m chore: remove QRIS payment integration files and related configurations to streamline the codebase
+[33m8b16d5e[m feat: enhance homestay and room retrieval with multi-language support by integrating translation utilities for homestay and room details
+[33mb0348a1[m chore: remove debug booking script and update TypeScript configuration for improved type checking
+[33m677e106[m feat: implement user profile management with update and notification preferences endpoints
+[33maa43a35[m feat: revamp email templates for booking confirmations and notifications with enhanced styling and personalized content
+[33mf942c67[m feat: enhance booking functionality with same-day availability checks and dynamic room status updates
+[33m7044eac[m feat: add punycode dependency and update Google OAuth setup documentation for 2024/2025
+[33m3a82f49[m fix: ensure optional user data fields are handled correctly in OAuth service
+[33m714539e[m chore: update dependencies and refactor server setup for improved structure and error handling
+[33m5e6b273[m booking fixes(Unregistered user booking)
+[33m9becd03[m Booking Issues Resolved
+[33m63b917e[m feat: add /my endpoint for user bookings - fixes frontend 500 error
+[33m9c0982e[m route fix
+[33mb722dc7[m fix: resolve remaining TypeScript errors in JWT and user types
+[33m53a5576[m Render fixes
+[33mdc3bb43[m Render build issues fix
+[33ma1e402f[m Types fix
+[33mf0b1c88[m render
+[33ma00110c[m render upload settings
+[33m6e67b73[m Fixed pictures upload from DB
+[33maabb2f4[m fix
+[33m18925a8[m fixes
+[33mdbdee3a[m lets goo
+[33mb140753[m database update
+[33m2602c4f[m db connection change
+[33m9d4178b[m add server
+[33m79a0d21[m first commit
