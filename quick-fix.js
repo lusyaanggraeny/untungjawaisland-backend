@@ -1,12 +1,9 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  connectionString: process.env.DB_CONNECTION_STRING,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  connectionString: "postgresql://postgres.afjlefismtdccjhftnmn:untung-jawa@aws-0-eu-central-1.pooler.supabase.com:6543/postgres",
+  ssl: { rejectUnauthorized: false }
 });
-
 
 async function quickFix() {
   try {
