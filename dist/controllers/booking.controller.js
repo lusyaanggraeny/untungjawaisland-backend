@@ -4,12 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkSameDayAvailability = exports.getBookingsByHomestay = exports.getBookingsByOwner = exports.getAllBookings = exports.getRoomBookings = exports.checkRoomAvailability = exports.createGuestBooking = exports.updateBookingStatus = exports.getMyBookings = exports.getUserBookings = exports.getBookingById = exports.createBooking = void 0;
+const moment_1 = __importDefault(require("moment"));
 const database_1 = require("../config/database");
-const booking_types_1 = require("../types/booking.types");
 const error_middleware_1 = require("../middleware/error.middleware");
 const email_service_1 = require("../services/email.service");
+const booking_types_1 = require("../types/booking.types");
 const user_types_1 = require("../types/user.types");
-const moment_1 = __importDefault(require("moment"));
 // Generate a unique booking number
 const generateBookingNumber = () => {
     const prefix = 'BK';
@@ -205,7 +205,7 @@ const createBooking = async (req, res, next) => {
                         day: 'numeric'
                     });
                     // Send booking confirmation email to customer
-                    await (0, email_service_1.sendBookingConfirmation)(user.email, {
+                    (0, email_service_1.sendBookingConfirmation)(user.email, {
                         bookingNumber: bookingNumber,
                         customerName: user.name,
                         homestayName: room.homestay_title,
@@ -217,14 +217,16 @@ const createBooking = async (req, res, next) => {
                         bookingStatus: 'Pending',
                         guestCount: number_of_guests,
                         specialRequests: special_requests || ''
-                    }).catch(err => console.error('Error sending booking confirmation email:', err));
+                    }).catch(err => {
+                        console.error("Email customer gagal:", err);
+                    });
                     // Get admin email (homestay owner or system admin)
                     const { rows: adminRows } = await database_1.pool.query(`SELECT au.email FROM "admin_users" au 
              JOIN "homestay" h ON h.user_id = au.id 
              WHERE h.id = $1`, [room.homestay_id]);
                     if (adminRows.length > 0) {
                         // Send notification to homestay owner
-                        await (0, email_service_1.sendBookingNotificationToAdmin)(adminRows[0].email, {
+                        (0, email_service_1.sendBookingNotificationToAdmin)(adminRows[0].email, {
                             bookingNumber: bookingNumber,
                             customerName: user.name,
                             homestayName: room.homestay_title,
@@ -753,7 +755,7 @@ const createGuestBooking = async (req, res, next) => {
           WHERE h.id = $1`, [room.homestay_id]);
             if (adminRows.length > 0) {
                 // Send notification to homestay owner with guest information
-                await (0, email_service_1.sendBookingNotificationToAdmin)(adminRows[0].email, {
+                (0, email_service_1.sendBookingNotificationToAdmin)(adminRows[0].email, {
                     bookingNumber: bookingNumber,
                     customerName: guest_name,
                     homestayName: room.homestay_title,
