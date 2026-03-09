@@ -1,20 +1,19 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
+import moment from 'moment';
 import { pool } from '../config/database';
-import { 
-  Booking, 
-  BookingCreateInput, 
-  BookingStatus,
-  BookingStatusUpdateInput, 
-  BookingWithRelations 
-} from '../types/booking.types';
 import { AppError } from '../middleware/error.middleware';
-import { 
-  sendBookingConfirmation, 
+import {
+  sendBookingConfirmation,
   sendBookingNotificationToAdmin,
   sendBookingStatusUpdate
 } from '../services/email.service';
-import { AdminJwtPayload, UserJwtPayload, AdminUserRole, UserRole } from '../types/user.types';
-import moment from 'moment';
+import {
+  BookingCreateInput,
+  BookingStatus,
+  BookingStatusUpdateInput,
+  BookingWithRelations
+} from '../types/booking.types';
+import { AdminUserRole } from '../types/user.types';
 
 // Generate a unique booking number
 const generateBookingNumber = (): string => {
@@ -292,7 +291,7 @@ export const createBooking = async (
           });
           
           // Send booking confirmation email to customer
-          await sendBookingConfirmation(user.email, {
+          sendBookingConfirmation(user.email, {
             bookingNumber: bookingNumber,
             customerName: user.name,
             homestayName: room.homestay_title,
@@ -304,7 +303,9 @@ export const createBooking = async (
             bookingStatus: 'Pending',
             guestCount: number_of_guests,
             specialRequests: special_requests || ''
-          }).catch(err => console.error('Error sending booking confirmation email:', err));
+          }).catch(err => {
+            console.error("Email customer gagal:", err);
+          });
           
           // Get admin email (homestay owner or system admin)
           const { rows: adminRows } = await pool.query(
@@ -316,7 +317,7 @@ export const createBooking = async (
           
           if (adminRows.length > 0) {
             // Send notification to homestay owner
-            await sendBookingNotificationToAdmin(adminRows[0].email, {
+            sendBookingNotificationToAdmin(adminRows[0].email, {
               bookingNumber: bookingNumber,
               customerName: user.name,
               homestayName: room.homestay_title,
@@ -1003,7 +1004,7 @@ export const createGuestBooking = async (
       
       if (adminRows.length > 0) {
         // Send notification to homestay owner with guest information
-        await sendBookingNotificationToAdmin(adminRows[0].email, {
+        sendBookingNotificationToAdmin(adminRows[0].email, {
           bookingNumber: bookingNumber,
           customerName: guest_name,
           homestayName: room.homestay_title,
