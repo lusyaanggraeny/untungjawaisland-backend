@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { sendEmail } from '../config/email';
 import {
   checkRoomAvailability,
   checkSameDayAvailability,
@@ -17,18 +16,6 @@ import {
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
-
-// =============================================
-// TEMPORARY: Test email route - DELETE AFTER TESTING
-// =============================================
-router.get('/test-email', async (req, res) => {
-  const result = await sendEmail({
-    to: 'gipeuntungjawa@gmail.com', // ⚠️ GANTI dengan email kamu sendiri
-    subject: 'Test SendGrid ✅',
-    html: '<h1>SendGrid berhasil!</h1><p>Email dari UntungJawa backend.</p>'
-  });
-  res.json({ success: result });
-});
 
 // New admin routes
 router.get('/', authenticateToken, getAllBookings);
