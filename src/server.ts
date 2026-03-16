@@ -23,6 +23,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: function(origin, callback) {
     const allowedOrigins = [
+      'https://untungjawaisland.com',
+      'https://www.untungjawaisland.com',
       'https://thesis-frontend-omega.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173',
