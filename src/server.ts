@@ -9,17 +9,16 @@ import homestayRoutes from './routes/homestay.routes';
 import { landingUserRoutes } from './routes/landing_user.routes';
 import { oauthRoutes } from './routes/oauth.routes';
 import paymentRoutes from './routes/payment.routes';
+import recommendationRoutes from './routes/recommendation.routes';
 import { reviewRoutes } from './routes/review.routes';
 import roomRoutes from './routes/room.routes';
 import { userRoutes } from './routes/user.routes';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors({
   origin: function(origin, callback) {
     const allowedOrigins = [
@@ -28,6 +27,7 @@ app.use(cors({
       'https://thesis-frontend-omega.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173',
+      'http://localhost:8080',
     ];
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
@@ -43,7 +43,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Test database connection
 pool.connect((err, client, release) => {
   if (err) {
     console.error('Database connection error:', err);
@@ -63,8 +62,8 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api', recommendationRoutes);
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
@@ -73,7 +72,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling middleware (should be last)
 app.use(errorHandler);
 
 app.listen(PORT, () => {
